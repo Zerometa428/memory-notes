@@ -1,0 +1,2043 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拾忆 · 回忆星图</title>
+<style>
+  :root{
+    --ink:#f3eadb; --dim:#8f93a8; --gold:#ffd39a; --accent:#e0714f;
+    --serif:"Songti SC","Noto Serif SC","Source Han Serif SC","STSong","SimSun",Georgia,serif;
+    --sans:"PingFang SC","Microsoft YaHei",-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:#04050b;color:var(--ink);font-family:var(--sans);overflow:hidden}
+  #sky{position:fixed;inset:0;display:block;cursor:grab;touch-action:none}
+  #sky.dragging{cursor:grabbing}
+  #sky.pointing{cursor:pointer}
+
+  .hud{position:fixed;z-index:5;opacity:0;transform:translateY(-6px);transition:opacity .9s ease,transform .9s ease}
+  body.ready .hud{opacity:1;transform:none}
+
+  .brand{left:28px;top:22px;display:flex;align-items:center;gap:12px}
+  .brand i{
+    width:30px;height:30px;display:grid;place-items:center;font-style:normal;
+    font-family:var(--serif);font-size:16px;color:#fbeee3;border-radius:5px;transform:rotate(-4deg);
+    background:linear-gradient(150deg,#e07a55,#b0432b);
+    box-shadow:inset 0 0 0 2px #b0432b,inset 0 0 0 3px rgba(255,236,218,.7),0 0 22px rgba(224,113,79,.45);
+  }
+  .brand b{font-family:var(--serif);font-size:17px;font-weight:600;letter-spacing:.24em;color:#fff6e8}
+  .brand span{font-size:12px;color:var(--dim);letter-spacing:.1em}
+
+  .tools{right:24px;top:20px;display:flex;gap:8px}
+  .tools button,.tools a{
+    font:inherit;font-size:12.5px;color:#e6dccb;text-decoration:none;cursor:pointer;
+    background:rgba(255,236,210,.05);border:1px solid rgba(255,226,190,.16);border-radius:10px;
+    padding:7px 14px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:.2s;
+  }
+  .tools button:hover,.tools a:hover{background:rgba(255,220,170,.12);border-color:rgba(255,214,160,.4);color:#fff;box-shadow:0 0 24px -6px rgba(255,190,120,.5)}
+
+  .hint{left:50%;top:24px;transform:translate(-50%,-6px);font-size:12px;color:#7f8398;letter-spacing:.12em;white-space:nowrap}
+  body.ready .hint{transform:translate(-50%,0)}
+
+  #panel{
+    position:fixed;z-index:8;top:0;right:0;height:100%;width:430px;max-width:92vw;
+    background:linear-gradient(180deg,rgba(18,15,14,.94),rgba(10,9,10,.97));
+    border-left:1px solid rgba(255,220,180,.12);
+    box-shadow:-30px 0 80px -20px rgba(0,0,0,.8);
+    backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+    transform:translateX(104%);transition:transform .45s cubic-bezier(.2,.8,.2,1);
+    display:flex;flex-direction:column;
+  }
+  #panel.open{transform:none}
+  #panel::before{
+    content:"";position:absolute;left:0;top:0;right:0;height:240px;pointer-events:none;
+    background:radial-gradient(80% 100% at 30% 0%,var(--c,rgba(255,200,140,.25)),transparent 70%);opacity:.35;
+  }
+  .p-scroll{position:relative;flex:1;overflow:auto;padding:34px 34px 20px}
+  .p-date{font-size:12px;letter-spacing:.16em;color:var(--c2,#ffd39a);margin-bottom:10px}
+  #panel h2{margin:0 30px 10px 0;font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:.06em;line-height:1.4;color:#fff6e8}
+  .p-meta{color:#9a917f;font-size:12.5px;letter-spacing:.06em;margin-bottom:18px}
+  .p-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:24px}
+  .p-chips span{font-size:11.5px;color:#e0d4c0;background:rgba(255,230,200,.06);border:1px solid rgba(255,220,180,.14);border-radius:999px;padding:3px 10px}
+  .p-body{font-family:var(--serif);font-size:16.5px;line-height:2.05;letter-spacing:.03em;color:#e9dfcf;border-top:1px solid rgba(255,220,180,.1);padding-top:22px}
+  .p-body p{margin:0 0 1.1em}
+  .p-body img{max-width:100%;border-radius:6px;margin:12px 0;display:block}
+  .p-body blockquote{margin:1em 0;padding-left:16px;border-left:2px solid var(--accent);color:#cbbfab}
+  .p-note{font-size:12px;color:#7f786c;margin-top:8px;line-height:1.8}
+  .p-foot{position:relative;display:flex;gap:8px;padding:16px 34px 22px;border-top:1px solid rgba(255,220,180,.08)}
+  .p-foot button,.p-foot a{
+    font:inherit;font-size:12.5px;text-decoration:none;cursor:pointer;border-radius:10px;padding:9px 15px;
+    border:1px solid rgba(255,220,180,.18);background:rgba(255,236,210,.05);color:#efe4d2;transition:.2s;
+  }
+  .p-foot button:hover,.p-foot a:hover{background:rgba(255,220,170,.12);border-color:rgba(255,214,160,.4)}
+  .p-foot .primary{background:linear-gradient(180deg,#e07a55,#b0432b);border-color:#b0432b;color:#fff}
+  .p-foot .spacer{flex:1}
+  #close{position:absolute;right:20px;top:22px;z-index:2;width:32px;height:32px;border-radius:50%;
+    border:1px solid rgba(255,220,180,.16);background:rgba(255,236,210,.05);color:#cfc3af;cursor:pointer;font-size:14px}
+  #close:hover{color:#fff;background:rgba(255,220,170,.14)}
+
+  /* ---------- 开场放映：把时间线从头到尾放一遍 ---------- */
+  #play{
+    position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:7vh 6vw 9vh;
+    background:radial-gradient(130% 95% at 50% 10%,#141019 0%,#08070c 58%,#04050a 100%);
+    opacity:1;transition:opacity .7s ease;
+  }
+  #play[hidden]{display:none}
+  #play.out{opacity:0;pointer-events:none}
+  .play-card{width:min(720px,92vw);display:flex;flex-direction:column;align-items:center;text-align:center;
+    opacity:0;transform:translateY(16px);transition:opacity .65s ease,transform .65s ease}
+  .play-card.show{opacity:1;transform:none}
+  .play-date{font-size:12px;letter-spacing:.24em;color:#c99b6a;margin-bottom:14px}
+  .play-title{margin:0 0 22px;font-family:var(--serif);font-size:clamp(26px,3.3vw,40px);font-weight:600;
+    letter-spacing:.06em;color:#fff3e2;line-height:1.35}
+  .play-stage{display:grid;place-items:center;width:100%;min-height:min(40vh,360px)}
+  .play-body,.play-fig{grid-area:1/1;width:100%}
+  .play-body{font-family:var(--serif);font-size:clamp(15px,1.3vw,18px);line-height:2.05;color:#d8ccb9;
+    transition:opacity .5s ease}
+  .play-body p{margin:0 0 .85em}
+  .play-body blockquote{margin:0 0 .85em;padding-left:14px;border-left:2px solid #b0432b;color:#c1b19b;text-align:left}
+  .play-card.fig-mode .play-body{opacity:0}
+  .play-body.swap{opacity:0}
+  .play-fig{width:min(520px,80vw);opacity:0;transform:scale(.985);
+    transition:opacity .55s ease,transform .55s ease;pointer-events:none}
+  .play-fig.on{opacity:1;transform:none}
+  .play-fig img{max-width:100%;max-height:44vh;border-radius:8px;display:block;margin:0 auto;
+    box-shadow:0 34px 90px -32px rgba(0,0,0,.92)}
+  .play-cap{margin-top:14px;font-size:12.5px;letter-spacing:.1em;color:#9b9184}
+  .play-cap:empty{display:none}
+  .play-hud{position:fixed;right:24px;bottom:22px;z-index:2;display:flex;align-items:center;gap:14px}
+  .play-count{font-size:12px;letter-spacing:.14em;color:#7d7f92}
+  .play-skip{font:inherit;font-size:12.5px;color:#e6dccb;cursor:pointer;border-radius:10px;padding:8px 16px;
+    background:rgba(255,236,210,.06);border:1px solid rgba(255,226,190,.2);transition:.2s}
+  .play-skip:hover{background:rgba(255,220,170,.14);border-color:rgba(255,214,160,.42);color:#fff}
+.play-music{font:inherit;font-size:12.5px;color:#cfc7b8;cursor:pointer;border-radius:10px;padding:8px 14px;background:rgba(255,235,205,.06);border:1px solid rgba(255,220,170,.18);transition:background .2s,color .2s,border-color .2s,opacity .2s;letter-spacing:.06em}
+.play-music:hover{background:rgba(255,220,170,.14);border-color:rgba(255,214,160,.42);color:#fff}
+.play-music.off{opacity:.5}
+  .play-mnote{font-size:12.5px;letter-spacing:.06em;color:#cbbda6;align-self:center;padding:2px 8px;border-radius:6px;background:rgba(255,240,220,.06)}
+.play-sound{position:fixed;left:0;right:0;bottom:64px;text-align:center;z-index:2;font-size:12.5px;letter-spacing:.1em;color:#d8c6a6;opacity:.9}
+.play-sound[hidden]{display:none}
+.play-tip{position:fixed;left:24px;bottom:24px;z-index:2;font-size:11.5px;letter-spacing:.1em;color:#5f6272}
+  .play-prog{position:fixed;left:0;right:0;bottom:0;height:2px;background:rgba(255,220,180,.07);z-index:2}
+  .play-prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#8e3626,#ffcf7a);transition:width .6s ease}
+
+  @media (max-width:700px){
+    .hint{display:none}
+    .play-tip{display:none}
+    .play-hud{right:14px;bottom:14px;gap:10px}
+    .brand span{display:none}
+    .tools{gap:6px;right:12px}
+    .tools button,.tools a{padding:6px 10px;font-size:12px}
+    .p-scroll{padding:28px 22px 16px}
+    .p-foot{padding:14px 22px 18px}
+  }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+
+<div class="hud brand"><i>忆</i><b>回忆星图</b><span id="subtitle"></span></div>
+<div class="hud hint">滚轮 / 拖动 穿行时间 · 上下拖动 转动星轴 · ← → 逐篇 · 双击卡片 直接改这篇</div>
+<div class="hud tools">
+  <button id="btn-play">从头放映</button>
+  <button id="btn-replay">重播开场</button>
+  <button id="btn-first">最早</button>
+  <button id="btn-now">此刻</button>
+  <a href="index.html#/timeline">回到应用</a>
+</div>
+
+<aside id="panel" aria-hidden="true">
+  <button id="close" aria-label="关闭">✕</button>
+  <div class="p-scroll">
+    <div class="p-date"></div>
+    <h2></h2>
+    <div class="p-meta"></div>
+    <div class="p-chips"></div>
+    <div class="p-body"></div>
+    <div class="p-note"></div>
+  </div>
+  <div class="p-foot">
+    <button id="p-prev">‹ 上一篇</button>
+    <button id="p-next">下一篇 ›</button>
+    <span class="spacer"></span>
+    <a id="p-open" class="primary" href="#">编辑这篇</a>
+  </div>
+</aside>
+
+<div id="play" hidden>
+  <div class="play-card">
+    <div class="play-date"></div>
+    <h2 class="play-title"></h2>
+    <div class="play-stage">
+      <div class="play-body"></div>
+      <figure class="play-fig"><img alt=""><div class="play-cap"></div></figure>
+    </div>
+  </div>
+  <div class="play-tip">这是你的时间线，从头放到尾 · Esc 跳过</div>
+      <div class="play-sound" id="play-sound" hidden>♪ 点一下页面任意位置，音乐就开始（下次从首页「回忆时间线」进，可以自动出声）</div>
+      <input type="file" id="music-file" accept="audio/*" hidden>
+  <div class="play-hud">
+  <span class="play-mnote" id="play-mnote"></span>
+    <span class="play-count"></span>
+    <button class="play-music" id="pick-music" title="换一首：选《风之谷》的钢琴录音（本地音频文件）">♫ 换曲</button>
+        <button class="play-music" id="play-music" title="放映时的背景音乐">♪ 音乐</button>
+    <button class="play-skip">跳过 ›</button>
+  </div>
+  <div class="play-prog"><i></i></div>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+// 兜底：初始化一旦抛错就当场说出来，避免只留一块黑屏
+(function crashBanner() {
+  window.addEventListener('error', (e) => {
+    if (!e || !e.message) return;
+    let el = document.getElementById('crash');
+    if (!el) {
+      el = document.createElement('pre');
+      el.id = 'crash';
+      el.style.cssText = 'position:fixed;left:16px;right:16px;bottom:16px;z-index:99;margin:0;padding:14px 16px;' +
+        'border-radius:10px;background:rgba(120,26,18,.94);color:#ffe9e2;font:12px/1.7 ui-monospace,Consolas,monospace;' +
+        'white-space:pre-wrap;max-height:40vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.55)';
+      (document.body || document.documentElement).appendChild(el);
+    }
+    el.textContent = '星图没能画出来：' + e.message + (e.lineno ? '（第 ' + e.lineno + ' 行）' : '');
+  });
+})();
+
+/* ============================================================
+   1. 数据：只读回忆录应用写在本机的内容（同一个浏览器、同一个文件夹），
+      应用里新写、修改、删除，这里都会自动跟上
+   ============================================================ */
+const KEY = 'shiyi.memoir.v1';
+const NOW_Y = new Date().getFullYear();
+
+function readRaw() { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
+function parseBook(raw) {
+  try {
+    const db = JSON.parse(raw || 'null');
+    if (!db || !db.books || !db.books.length) return null;
+    return db.books.find((b) => b.id === db.activeBookId) || db.books[0];
+  } catch (e) { return null; }
+}
+
+let book = { title: '', volumes: [], people: [] };
+let entries = [];
+
+const VOL_COLORS = { v1: '#ffcf7a', v2: '#7fd8ff', v3: '#ff9d6c', v4: '#ff8fb8', v5: '#b9a3ff' };
+const PALETTE = ['#ffcf7a', '#7fd8ff', '#ff9d6c', '#ff8fb8', '#b9a3ff', '#8ef0b0', '#9fc4ff', '#f5e17a'];
+function colorOf(vid) {
+  if (VOL_COLORS[vid]) return VOL_COLORS[vid];
+  const i = book.volumes.findIndex((v) => v.id === vid);
+  return PALETTE[(i < 0 ? 0 : i) % PALETTE.length];
+}
+const volName = (id) => (book.volumes.find((v) => v.id === id) || {}).title || '未分卷';
+const personName = (id) => (book.people.find((p) => p.id === id) || {}).name || '';
+
+function yearOf(e) {
+  const t = e.time || {};
+  let m = /(\d{4})/.exec(t.date || '');
+  if (m) return Number(m[1]);
+  m = /(\d{4})/.exec(t.note || '');
+  return m ? Number(m[1]) : null;
+}
+const SEASON = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' };
+function timeLabel(e) {
+  const t = e.time || {};
+  const y = yearOf(e);
+  const p = (t.date || '').split('-');
+  let s;
+  if (!y) s = t.note || '记不清是哪一年';
+  else if (t.precision === 'day' && p[2]) s = `${y} 年 ${+p[1]} 月 ${+p[2]} 日`;
+  else if (t.precision === 'month' && p[1]) s = `${y} 年 ${+p[1]} 月`;
+  else if (t.precision === 'season') s = `${y} 年 · ${SEASON[t.season] || ''}`;
+  else s = `${y} 年`;
+  if (y && t.note && t.precision !== 'unknown') s += ' · ' + t.note;
+  return s;
+}
+function plain(html) {
+  const d = document.createElement('div');
+  d.innerHTML = html || '';
+  d.querySelectorAll('img').forEach((i) => i.replaceWith('〔照片〕'));
+  return (d.textContent || '').replace(/\s+/g, ' ').trim();
+}
+function sanitize(html) {
+  const d = document.createElement('div');
+  d.innerHTML = html || '';
+  d.querySelectorAll('script,style,iframe,object,embed,link,meta,form').forEach((n) => n.remove());
+  d.querySelectorAll('*').forEach((el) => Array.from(el.attributes).forEach((a) => {
+    if (/^on/i.test(a.name) || ((a.name === 'href' || a.name === 'src') && /^\s*javascript:/i.test(a.value))) el.removeAttribute(a.name);
+  }));
+  return d.innerHTML;
+}
+function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; }
+
+/* ============================================================
+   3. 时间轴模型：u 是“叙事距离”，有事的年份按篇数展开，空年份只占一点
+   ============================================================ */
+const EMPTY_YEAR = 0.4;   // 表内没写东西的年份
+const GHOST_YEAR = 0.55;  // 表外（更早 / 未来）的年份
+
+let nodes = [];
+let undatedZone = null;
+let years = [];
+let Y0 = NOW_Y, Y1 = NOW_Y, TABLE_U0 = 0, NOW_U = 1, PAST_U0 = 0;
+let FIRST_U = 0, MIN_U = -60, MAX_U = 160;
+
+const PH_CAP = '图片说明（可点开编辑）';
+
+/* 老版本插入图片时会写一行占位图注「图片说明（可点开编辑）」，
+   用户可能还在前面/后面接着写字，这里只把占位那截去掉，保留自己写的内容 */
+function stripFigPlaceholder(html) {
+  if (!html || html.indexOf(PH_CAP) < 0) return html;
+  return html.replace(/(<figcaption[^>]*>)([\s\S]*?)(<\/figcaption>)/g, (m, a, body, z) =>
+    body.indexOf(PH_CAP) < 0 ? m : a + body.split(PH_CAP).join('').trim() + z);
+}
+
+function buildModel(raw, bornAt) {
+  const b = parseBook(raw);
+  book = b ? { title: b.title || '我的一生', volumes: b.volumes || [], people: b.people || [] } : { title: '', volumes: [], people: [] };
+  entries = b ? (b.entries || []).filter((e) => !e.deletedAt && !e.deleted) : [];
+  // 这些条目都来自本机回忆录，双击可以回到应用里编辑
+  entries.forEach((e) => { e.local = true; e.html = stripFigPlaceholder(e.html); });
+
+  const dated = entries.filter((e) => yearOf(e)).sort((x, y) => {
+    const kx = ((x.time && x.time.date) || String(yearOf(x))).padEnd(10, '0');
+    const ky = ((y.time && y.time.date) || String(yearOf(y))).padEnd(10, '0');
+    return kx < ky ? -1 : kx > ky ? 1 : 0;
+  });
+  const undated = entries.filter((e) => !yearOf(e));
+
+  const next = [];
+  let u = 0;
+  undatedZone = undated.length ? { u0: 0, u1: 0 } : null;
+  undated.forEach((e) => { next.push(makeNode(e, u + 0.5)); u += 1; });
+  if (undatedZone) { undatedZone.u1 = u; u += 0.6; }
+
+  Y0 = dated.length ? yearOf(dated[0]) : NOW_Y;
+  Y1 = Math.max(NOW_Y, dated.length ? yearOf(dated[dated.length - 1]) : NOW_Y);
+  const byYear = {};
+  dated.forEach((e) => { (byYear[yearOf(e)] = byYear[yearOf(e)] || []).push(e); });
+  years = [];
+  for (let y = Y0; y <= Y1; y++) {
+    const list = byYear[y] || [];
+    const span = list.length || EMPTY_YEAR;
+    years.push({ y, u0: u, u1: u + span, n: list.length });
+    list.forEach((e, i) => next.push(makeNode(e, u + (i + 0.5) * span / list.length)));
+    u += span;
+  }
+  TABLE_U0 = years[0].u0;
+  NOW_U = years[years.length - 1].u1;
+  PAST_U0 = undatedZone ? undatedZone.u0 : TABLE_U0;
+
+  // 上下交替地挂在星轴两侧，并在前后（z）错开，形成立体。
+  // 已有的篇章从原来的位置平滑挪过去，新写的从星轴里飞出来
+  const old = new Map(nodes.map((n) => [n.e.id, n]));
+  next.forEach((n, i) => {
+    n.up = i % 2 === 0;
+    n.theta = (n.up ? 0 : Math.PI) + (n.r1 - 0.5) * 1.15;
+    n.rad = 0.78 + n.r2 * 0.32;
+    const o = old.get(n.e.id);
+    n.th = o ? o.th : n.theta;
+    n.uc = o ? o.uc : n.u;
+    n.bornAt = o ? o.bornAt : bornAt;
+    n.isNew = !o && bornAt > 0;
+  });
+  nodes = next;
+  FIRST_U = nodes.length ? nodes[0].u : NOW_U - 1;
+  MIN_U = PAST_U0 - 60;
+  MAX_U = NOW_U + 160;
+}
+
+function uOfYear(y) {
+  if (y < Y0) return PAST_U0 - (Y0 - y) * GHOST_YEAR;
+  if (y > Y1) return NOW_U + (y - Y1 - 1) * GHOST_YEAR;
+  return years[y - Y0].u0;
+}
+function yearAtU(uu) {
+  if (uu < TABLE_U0) return uu < PAST_U0 ? Y0 - Math.ceil((PAST_U0 - uu) / GHOST_YEAR) : null;
+  if (uu >= NOW_U) return Y1 + 1 + Math.floor((uu - NOW_U) / GHOST_YEAR);
+  let lo = 0, hi = years.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (years[mid].u0 <= uu) lo = mid; else hi = mid - 1; }
+  return years[lo].y;
+}
+
+function makeNode(e, uu) {
+  const r1 = hash(e.id + 'a'), r2 = hash(e.id + 'b'), r3 = hash(e.id + 'c');
+  return {
+    e, u: uu, color: colorOf(e.volumeId), milestone: !!e.milestone,
+    year: yearOf(e), label: timeLabel(e), excerpt: plain(e.html).slice(0, 90),
+    r1, r2, r3, seed: r3,
+  };
+}
+buildModel(readRaw(), 0);
+
+/* ============================================================
+   4. 画布、相机、投影
+   ============================================================ */
+const cv = document.getElementById('sky');
+const ctx = cv.getContext('2d');
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SERIF = '"Songti SC","Noto Serif SC","Source Han Serif SC","STSong","SimSun",serif';
+const SANS = '"PingFang SC","Microsoft YaHei",system-ui,sans-serif';
+
+let W = 0, H = 0, DPR = 1;
+let SPAN = 150, A = 2.6, B = 2.2, R = 220, FLOOR = -330, CY = 0;
+const D = 1100, F = 1100;
+let nebula = null;
+let stars = [];
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  A = W < 700 ? 1.4 : W < 1100 ? 2.4 : 3.3;
+  B = W < 700 ? 1.4 : 2.0;
+  SPAN = Math.min(170, (W * 0.43) / (A + B));
+  const hs = Math.max(0.62, Math.min(1.1, H / 900));
+  R = 225 * hs;
+  FLOOR = -350 * hs;
+  CY = H * 0.47;
+  buildNebula();
+  buildStars();
+}
+
+function buildNebula() {
+  nebula = document.createElement('canvas');
+  nebula.width = Math.ceil(W / 2); nebula.height = Math.ceil(H / 2);
+  const g = nebula.getContext('2d');
+  const blobs = [
+    [0.18, 0.22, 0.55, 'rgba(255,170,100,.16)'],
+    [0.82, 0.18, 0.5, 'rgba(110,120,255,.13)'],
+    [0.62, 0.78, 0.6, 'rgba(255,120,150,.08)'],
+    [0.3, 0.75, 0.45, 'rgba(80,200,255,.07)'],
+    [0.5, 0.45, 0.4, 'rgba(255,210,150,.07)'],
+  ];
+  blobs.forEach(([x, y, r, c]) => {
+    const rr = r * Math.max(nebula.width, nebula.height);
+    const gr = g.createRadialGradient(x * nebula.width, y * nebula.height, 0, x * nebula.width, y * nebula.height, rr);
+    gr.addColorStop(0, c); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, nebula.width, nebula.height);
+  });
+}
+function buildStars() {
+  const n = Math.round((W * H) / 2600);
+  stars = Array.from({ length: n }, (_, i) => ({
+    x: Math.random(), y: Math.random(),
+    layer: i % 3, r: Math.random() * 1.1 + 0.25,
+    tw: Math.random() * Math.PI * 2, sp: 0.6 + Math.random() * 1.8,
+    warm: Math.random() < 0.3,
+  }));
+}
+
+let yaw = -0.1, pitch = 0.26, spin = 0;
+let yawT = -0.1, pitchT = 0.26, spinT = 0;
+let cosY = 1, sinY = 0, cosP = 1, sinP = 0;
+
+function project(x, y, z) {
+  const x1 = x * cosY + z * sinY;
+  const z1 = -x * sinY + z * cosY;
+  const vert = y * cosP - z1 * sinP;
+  const depth = D - y * sinP - z1 * cosP;
+  if (depth < 60) return null;
+  const s = F / depth;
+  return { x: W / 2 + x1 * s, y: CY - vert * s, s, depth };
+}
+
+/* 鱼眼折叠：焦点附近完全展开，越远越压缩，无限远处收敛到两端 */
+function warp(d) {
+  const a = Math.abs(d);
+  if (a <= A) return d;
+  return Math.sign(d) * (A + B * (1 - Math.exp(-(a - A) / B)));
+}
+function unwarp(w) {
+  const a = Math.abs(w);
+  if (a <= A) return w;
+  const k = Math.min(0.9999, (a - A) / B);
+  return Math.sign(w) * (A - B * Math.log(1 - k));
+}
+function openness(d) {
+  const a = Math.abs(d);
+  const t = 1 - (a - (A - 0.5)) / 1.8;
+  return smooth(t);
+}
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+const easeOut = (t) => { t = clamp(t, 0, 1); return 1 - Math.pow(1 - t, 3); };
+const easeIn = (t) => { t = clamp(t, 0, 1); return t * t * t; };
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+function rr(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/* ============================================================
+   5. 状态与交互
+   ============================================================ */
+const START_U = FIRST_U + Math.max(0, A - 0.8);
+let f = START_U, fT = START_U, fVel = 0;
+let introStart = performance.now();
+let lastInput = 0;
+let dragging = false, scrubbing = false, moved = false;
+let dragX = 0, dragY = 0, lastMoveT = 0;
+let hover = null, selected = null;
+let mouseX = 0.5, mouseY = 0.5;
+let hits = [];          // 每帧重建：{n, x, y, w, h, ox, oy, or}
+let edgeHits = [];
+let ruler = null;
+
+const body = document.body;
+const localCount = entries.length;
+document.getElementById('subtitle').textContent =
+  book.title + (localCount ? ` · 含你写的 ${localCount} 篇` : '');
+
+function introT(now) { return reduceMotion ? 99 : (now - introStart) / 1000; }
+
+cv.addEventListener('pointerdown', (ev) => {
+  cv.setPointerCapture(ev.pointerId);
+  dragX = ev.clientX; dragY = ev.clientY; moved = false;
+  if (ruler && ev.clientY > ruler.y - 22 && ev.clientY < ruler.y + 22 && ev.clientX > ruler.x0 - 20 && ev.clientX < ruler.x1 + 20) {
+    scrubbing = true;
+    fT = ruler.toU(ev.clientX); fVel = 0;
+  } else {
+    dragging = true;
+    cv.classList.add('dragging');
+  }
+  lastInput = performance.now();
+});
+cv.addEventListener('pointermove', (ev) => {
+  mouseX = ev.clientX / W; mouseY = ev.clientY / H;
+  if (scrubbing) { fT = ruler.toU(ev.clientX); lastInput = performance.now(); return; }
+  if (dragging) {
+    const dx = ev.clientX - dragX, dy = ev.clientY - dragY;
+    if (Math.abs(ev.clientX - dragX) + Math.abs(ev.clientY - dragY) > 3) moved = true;
+    const du = -dx / SPAN;
+    fT = clamp(fT + du, MIN_U, MAX_U);
+    const now = performance.now();
+    fVel = du / Math.max(1, now - lastMoveT) * 16;
+    lastMoveT = now;
+    spinT += dy * 0.004;
+    dragX = ev.clientX; dragY = ev.clientY;
+    lastInput = now;
+    return;
+  }
+  hover = hitTest(ev.clientX, ev.clientY);
+  cv.classList.toggle('pointing', !!hover || !!edgeAt(ev.clientX, ev.clientY) || nearRuler(ev.clientX, ev.clientY));
+});
+cv.addEventListener('pointerup', (ev) => {
+  const wasDrag = dragging, wasScrub = scrubbing;
+  dragging = scrubbing = false;
+  cv.classList.remove('dragging');
+  if (wasScrub) return;
+  if (wasDrag && !moved) {
+    fVel = 0;
+    const n = hitTest(ev.clientX, ev.clientY);
+    if (n) { select(n); return; }
+    const edge = edgeAt(ev.clientX, ev.clientY);
+    if (edge) { fT = clamp(fT + edge * (A * 1.6), MIN_U, MAX_U); return; }
+    closePanel();
+  }
+});
+cv.addEventListener('pointerleave', () => { hover = null; });
+
+// 双击卡片 → 直接进应用里的编辑器改这一篇
+cv.addEventListener('dblclick', (ev) => {
+  const n = hitTest(ev.clientX, ev.clientY);
+  if (!n || !n.e || !n.e.local) return;
+  ev.preventDefault();
+  location.href = 'index.html#/write/' + encodeURIComponent(n.e.id);
+});
+cv.addEventListener('wheel', (ev) => {
+  ev.preventDefault();
+  const k = ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? 400 : 1;
+  const dv = (Math.abs(ev.deltaX) > Math.abs(ev.deltaY) ? ev.deltaX : ev.deltaY) * k;
+  fT = clamp(fT + dv * 0.0036, MIN_U, MAX_U);
+  fVel = 0;
+  lastInput = performance.now();
+}, { passive: false });
+
+window.addEventListener('keydown', (ev) => {
+  if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown' || ev.key === 'PageDown') { step(1); ev.preventDefault(); }
+  else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' || ev.key === 'PageUp') { step(-1); ev.preventDefault(); }
+  else if (ev.key === 'Home') { fT = FIRST_U; }
+  else if (ev.key === 'End') { fT = NOW_U - 0.5; }
+  else if (ev.key === 'Enter') { const n = nearest(f); if (n) select(n); }
+  else if (ev.key === 'Escape') closePanel();
+  lastInput = performance.now();
+});
+window.addEventListener('resize', resize);
+
+document.getElementById('btn-replay').addEventListener('click', () => {
+  closePanel();
+  f = fT = START_U; fVel = 0; spin = spinT = 0;
+  introStart = performance.now();
+  body.classList.remove('ready');
+});
+document.getElementById('btn-first').addEventListener('click', () => { fT = FIRST_U; lastInput = performance.now(); });
+document.getElementById('btn-now').addEventListener('click', () => { fT = NOW_U - Math.min(A, 1.2); lastInput = performance.now(); });
+
+function step(dir) {
+  const base = selected && panelOpen() ? selected.u : f;
+  const list = dir > 0 ? nodes.filter((n) => n.u > base + 0.05) : nodes.filter((n) => n.u < base - 0.05).reverse();
+  if (list[0]) { if (panelOpen()) select(list[0]); else fT = list[0].u; }
+}
+function nearest(uu) {
+  let best = null, bd = Infinity;
+  nodes.forEach((n) => { const d = Math.abs(n.u - uu); if (d < bd) { bd = d; best = n; } });
+  return best;
+}
+function hitTest(x, y) {
+  for (let i = hits.length - 1; i >= 0; i--) {
+    const h = hits[i];
+    if (h.w && x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h) return h.n;
+    if ((x - h.ox) ** 2 + (y - h.oy) ** 2 <= (h.or + 8) ** 2) return h.n;
+  }
+  return null;
+}
+function edgeAt(x, y) {
+  const e = edgeHits.find((h) => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h);
+  return e ? e.dir : 0;
+}
+function nearRuler(x, y) { return ruler && Math.abs(y - ruler.y) < 22 && x > ruler.x0 - 20 && x < ruler.x1 + 20; }
+
+/* ---------- 详情面板 ---------- */
+const panel = document.getElementById('panel');
+const panelOpen = () => panel.classList.contains('open');
+function select(n) {
+  selected = n;
+  fT = n.u;
+  lastInput = performance.now();
+  const e = n.e;
+  panel.style.setProperty('--c', hexA(n.color, 0.6));
+  panel.style.setProperty('--c2', n.color);
+  panel.querySelector('.p-date').textContent = n.label;
+  panel.querySelector('h2').textContent = e.title || '无题';
+  panel.querySelector('.p-meta').textContent = [volName(e.volumeId), e.place].filter(Boolean).join(' · ');
+  const chips = (e.people || []).map(personName).filter(Boolean).concat((e.tags || []).map((t) => '#' + t));
+  panel.querySelector('.p-chips').innerHTML = chips.map((c) => `<span>${c.replace(/[<>&]/g, '')}</span>`).join('');
+  panel.querySelector('.p-body').innerHTML = sanitize(e.html);
+  const open = document.getElementById('p-open');
+  open.style.display = e.local ? '' : 'none';
+  open.href = 'index.html#/write/' + encodeURIComponent(e.id);
+  panel.querySelector('.p-note').textContent = e.local ? '' : '这一篇是星图里内置的回忆录内容，应用里还没有这一篇。';
+  panel.querySelector('.p-scroll').scrollTop = 0;
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+}
+function closePanel() {
+  panel.classList.remove('open');
+  panel.setAttribute('aria-hidden', 'true');
+  selected = null;
+}
+document.getElementById('close').addEventListener('click', closePanel);
+document.getElementById('p-prev').addEventListener('click', () => step(-1));
+document.getElementById('p-next').addEventListener('click', () => step(1));
+
+/* ============================================================
+   6. 绘制
+   ============================================================ */
+const intro = Array.from({ length: 160 }, () => ({
+  a: Math.random() * Math.PI * 2, r: 0.35 + Math.random() * 0.55, s: Math.random() * 1.6 + 0.4,
+  c: Math.random() < 0.5 ? '255,214,160' : Math.random() < 0.5 ? '160,200,255' : '255,160,190',
+}));
+let bigYear = null, bigYearPrev = null, bigYearT = 0;
+
+function frame(now) {
+  const t = now / 1000;
+  const T = introT(now);
+
+  // —— 运动 ——
+  if (!dragging && !scrubbing) {
+    if (Math.abs(fVel) > 0.0008) { fT = clamp(fT + fVel, MIN_U, MAX_U); fVel *= 0.93; }
+    else {
+      fVel = 0;
+      // 停下来后轻轻吸附到最近的一篇
+      if (now - lastInput > 260) {
+        const n = nearest(fT);
+        if (n && Math.abs(n.u - fT) < 0.6) fT += (n.u - fT) * 0.08;
+      }
+    }
+  }
+  f += (fT - f) * (scrubbing ? 0.25 : 0.1);
+  yawT = -0.1 + (mouseX - 0.5) * 0.3;
+  pitchT = 0.24 + (mouseY - 0.5) * 0.14;
+  if (!reduceMotion) spinT += 0; // 拖动时才转
+  yaw += (yawT - yaw) * 0.045;
+  pitch += (pitchT - pitch) * 0.045;
+  spin += (spinT - spin) * 0.08;
+  const drift = reduceMotion ? 0 : Math.sin(t * 0.13) * 0.12;
+  cosY = Math.cos(yaw); sinY = Math.sin(yaw);
+  cosP = Math.cos(pitch); sinP = Math.sin(pitch);
+
+  // —— 开场节奏 ——
+  const gather = clamp(T / 1.0, 0, 1);            // 0–1s 收束
+  const burst = T - 1.0;                          // 1s 后爆开
+  const spineGrow = easeOut(burst / 1.3);
+  const hudOn = T > 2.4;
+  if (hudOn && !body.classList.contains('ready')) body.classList.add('ready');
+
+  // —— 背景 ——
+  ctx.globalCompositeOperation = 'source-over';
+  const bg = ctx.createRadialGradient(W / 2, CY, 0, W / 2, CY, Math.max(W, H) * 0.8);
+  bg.addColorStop(0, '#0f1222'); bg.addColorStop(0.55, '#080a15'); bg.addColorStop(1, '#030409');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 0.9 + Math.sin(t * 0.2) * 0.1;
+  ctx.drawImage(nebula, 0, 0, W, H);
+  ctx.globalAlpha = 1;
+  drawStars(t);
+
+  // —— 背景巨大的年份 ——
+  const fy = (nearest(f) && Math.abs(nearest(f).u - f) < 0.6) ? nearest(f).year : yearAtU(f);
+  if (fy !== bigYear) { bigYearPrev = bigYear; bigYear = fy; bigYearT = 0; }
+  bigYearT = Math.min(1, bigYearT + 0.04);
+  if (spineGrow > 0) {
+    const sz = Math.min(W * 0.26, H * 0.4);
+    ctx.font = `600 ${sz}px ${SERIF}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const draw = (y, a) => {
+      if (y == null || a <= 0) return;
+      ctx.fillStyle = `rgba(255,214,160,${0.07 * a * spineGrow})`;
+      ctx.fillText(String(y), W / 2 + (mouseX - 0.5) * -30, CY - 10);
+    };
+    draw(bigYearPrev, 1 - bigYearT);
+    draw(bigYear ?? '记不清', bigYearT);
+  }
+
+  // —— 计算每个节点的 3D 位置 ——
+  const placed = [];
+  nodes.forEach((n) => {
+    const d = n.u - f;
+    n.d = d;
+    n.open = openness(d);
+    const delay = Math.min(Math.abs(d), 6) * 0.07 + n.r3 * 0.18;
+    const e = reduceMotion ? 1 : easeOut((burst - delay) / 1.4);
+    n.intro = e;
+    n.cardIn = reduceMotion ? 1 : smooth((burst - 0.7 - delay) / 0.7);
+    const wx = warp(d) * SPAN;
+    const k = n.open;
+    const ang = n.theta + spin + drift + (1 - e) * 2.4;
+    const rad = R * n.rad * k;
+    let x = wx, y = Math.cos(ang) * rad, z = Math.sin(ang) * rad;
+    x *= e; y *= e; z *= e;
+    // 折叠：快合上时贴着星轴变成一圈细环
+    n.world = { x, y, z };
+    n.base = { x: wx * e, y: 0, z: 0 };
+    const p = project(x, y, z);
+    const pb = project(n.base.x, 0, 0);
+    if (!p || !pb) return;
+    n.p = p; n.pb = pb;
+    placed.push(n);
+  });
+
+  // —— 地面：网格、光池、倒影、影子 ——
+  if (spineGrow > 0) drawFloor(spineGrow, placed, t);
+
+  // —— 星轴后面的节点 ——
+  const behind = placed.filter((n) => n.world.z < -2).sort((a, b) => b.p.depth - a.p.depth);
+  const front = placed.filter((n) => n.world.z >= -2).sort((a, b) => b.p.depth - a.p.depth);
+  hits = [];
+  behind.forEach((n) => drawNode(n, t));
+
+  // —— 星轴本身 ——
+  if (spineGrow > 0) drawSpine(spineGrow, t);
+  drawFolded(placed, spineGrow);
+
+  front.forEach((n) => drawNode(n, t));
+
+  // —— 焦点处的光源 ——
+  drawFocusLight(spineGrow, t);
+
+  // —— 开场：收束与爆开 ——
+  if (T < 3) drawIntro(T, gather, burst, t);
+
+  // —— HUD：两端折叠计数、整体时间尺 ——
+  if (hudOn || reduceMotion) {
+    const a = reduceMotion ? 1 : smooth((T - 2.4) / 0.8);
+    drawEdges(a);
+    drawRuler(a);
+  } else { edgeHits = []; ruler = null; }
+
+  requestAnimationFrame(frame);
+}
+
+function drawStars(t) {
+  ctx.globalCompositeOperation = 'lighter';
+  const par = [6, 14, 26];
+  stars.forEach((s) => {
+    const ox = -(f * par[s.layer] + yaw * 260 * (s.layer + 1));
+    let x = (s.x * W + ox) % W; if (x < 0) x += W;
+    const y = s.y * H + pitch * 80 * (s.layer + 1);
+    const tw = 0.55 + 0.45 * Math.sin(t * s.sp + s.tw);
+    const a = (0.25 + s.layer * 0.22) * tw;
+    ctx.fillStyle = s.warm ? `rgba(255,224,190,${a})` : `rgba(210,222,255,${a})`;
+    ctx.fillRect(x, y % H, s.r + s.layer * 0.35, s.r + s.layer * 0.35);
+  });
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawFloor(g, placed, t) {
+  const ext = (A + B) * SPAN * 1.15 * g;
+  // 光池：焦点的光落在地面上
+  const pc = project(0, FLOOR, 0);
+  if (pc) {
+    ctx.save();
+    ctx.translate(pc.x, pc.y);
+    ctx.scale(1, 0.28);
+    const rad = W * 0.42;
+    const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, rad);
+    gr.addColorStop(0, `rgba(255,196,130,${0.16 * g})`);
+    gr.addColorStop(0.5, `rgba(255,170,110,${0.05 * g})`);
+    gr.addColorStop(1, 'rgba(255,160,100,0)');
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.arc(0, 0, rad, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  // 网格：横线（沿时间方向）
+  ctx.lineWidth = 1;
+  for (let z = -900; z <= 600; z += 150) {
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i <= 40; i++) {
+      const x = -ext + (ext * 2 * i) / 40;
+      const p = project(x, FLOOR, z);
+      if (!p) continue;
+      if (!started) { ctx.moveTo(p.x, p.y); started = true; } else ctx.lineTo(p.x, p.y);
+    }
+    const a = 0.07 * g * (1 - Math.abs(z + 150) / 1000);
+    const lg = ctx.createLinearGradient(W / 2 - ext, 0, W / 2 + ext, 0);
+    lg.addColorStop(0, 'rgba(255,220,180,0)'); lg.addColorStop(0.5, `rgba(255,220,180,${a})`); lg.addColorStop(1, 'rgba(255,220,180,0)');
+    ctx.strokeStyle = lg; ctx.stroke();
+  }
+  // 竖线（跟着时间一起折叠）
+  for (let k = Math.floor(f - 30); k <= Math.ceil(f + 30); k++) {
+    const d = k - f;
+    const x = warp(d) * SPAN * g;
+    const p1 = project(x, FLOOR, -900), p2 = project(x, FLOOR, 600);
+    if (!p1 || !p2) continue;
+    const a = 0.06 * g * (0.25 + 0.75 * openness(d));
+    const lg = ctx.createLinearGradient(p1.x, p1.y, p2.x, p2.y);
+    lg.addColorStop(0, 'rgba(255,220,180,0)'); lg.addColorStop(0.6, `rgba(255,220,180,${a})`); lg.addColorStop(1, 'rgba(255,220,180,0)');
+    ctx.strokeStyle = lg;
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+  }
+  // 星轴在地面上的倒影
+  ctx.globalCompositeOperation = 'lighter';
+  const pa = project(-ext / 1.15, FLOOR, 0), pb = project(ext / 1.15, FLOOR, 0);
+  if (pa && pb) {
+    const lg = ctx.createLinearGradient(pa.x, pa.y, pb.x, pb.y);
+    lg.addColorStop(0, 'rgba(255,210,150,0)'); lg.addColorStop(0.5, `rgba(255,210,150,${0.16 * g})`); lg.addColorStop(1, 'rgba(255,210,150,0)');
+    ctx.strokeStyle = lg; ctx.lineWidth = 6; ctx.filter = 'blur(4px)';
+    ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+    ctx.filter = 'none';
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  // 节点投在地面上的影子 + 地面上的彩色反光
+  placed.forEach((n) => {
+    const k = n.open * n.intro;
+    if (k < 0.03) return;
+    const ps = project(n.world.x, FLOOR, n.world.z);
+    if (!ps) return;
+    const h = n.world.y - FLOOR;
+    const rx = (18 + h * 0.07) * ps.s;
+    ctx.save();
+    ctx.translate(ps.x, ps.y); ctx.scale(1, 0.3);
+    const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    gr.addColorStop(0, `rgba(0,0,0,${0.55 * k})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'lighter';
+    const gc = ctx.createRadialGradient(0, 0, 0, 0, 0, rx * 1.6);
+    gc.addColorStop(0, hexA(n.color, 0.1 * k)); gc.addColorStop(1, hexA(n.color, 0));
+    ctx.fillStyle = gc; ctx.beginPath(); ctx.arc(0, 0, rx * 1.6, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  });
+}
+
+function spineU(w) { return f + unwarp(w); }
+
+function drawSpine(g, t) {
+  const N = 220;
+  const ext = (A + B) * 0.995;
+  let prev = null;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  for (let i = 0; i <= N; i++) {
+    const w = -ext + (2 * ext * i) / N;
+    const x = w * SPAN * g;
+    const p = project(x, 0, 0);
+    if (!p) { prev = null; continue; }
+    if (prev) {
+      const uu = spineU(w);
+      const real = uu >= PAST_U0 - 0.2 && uu <= NOW_U;
+      const fall = Math.exp(-(w * w) / (A * A * 1.4));
+      const edge = 1 - smooth((Math.abs(w) - ext * 0.85) / (ext * 0.15));
+      const pulse = 0.85 + 0.15 * Math.sin(t * 2 - w * 2);
+      let a = (0.18 + 0.82 * fall) * edge * pulse;
+      if (!real) { if (i % 4 < 2) { prev = p; continue; } a *= 0.35; }
+      // 外层柔光
+      ctx.strokeStyle = `rgba(255,190,120,${0.16 * a})`;
+      ctx.lineWidth = 14 * p.s;
+      ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      // 中层
+      ctx.strokeStyle = `rgba(255,214,160,${0.38 * a})`;
+      ctx.lineWidth = 4 * p.s;
+      ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      // 亮芯
+      ctx.strokeStyle = `rgba(255,246,230,${0.85 * a})`;
+      ctx.lineWidth = 1.3 * p.s;
+      ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    }
+    prev = p;
+  }
+  // 沿星轴流动的光点
+  for (let i = 0; i < 26; i++) {
+    const ph = ((t * 0.06 + i / 26) % 1);
+    const w = -ext + ph * 2 * ext;
+    const p = project(w * SPAN * g, 0, 0);
+    if (!p) continue;
+    const a = Math.exp(-(w * w) / (A * A * 2)) * 0.8;
+    const rad = 2.2 * p.s;
+    const gr = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rad * 4);
+    gr.addColorStop(0, `rgba(255,240,215,${a})`); gr.addColorStop(1, 'rgba(255,200,140,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(p.x, p.y, rad * 4, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // 年份刻度
+  const yA = yearAtU(f - 60) ?? Y0, yB = yearAtU(f + 60) ?? Y0;
+  let lastX = -1e9, lastXR = 1e9;
+  const ticks = [];
+  for (let y = Math.max(Y0 - 400, (yA || Y0) - 1); y <= Math.min(Y1 + 400, (yB || Y1) + 1); y++) {
+    const uu = uOfYear(y);
+    const d = uu - f;
+    if (Math.abs(warp(d)) > ext) continue;
+    ticks.push({ y, d, uu });
+  }
+  // 从焦点往两边排，挤不下的就不写字
+  ticks.sort((a, b) => Math.abs(a.d) - Math.abs(b.d));
+  const used = [];
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ticks.forEach((tk) => {
+    const p = project(warp(tk.d) * SPAN * g, 0, 0);
+    if (!p) return;
+    const o = openness(tk.d);
+    const real = tk.y >= Y0 && tk.y <= Y1;
+    const decade = tk.y % 10 === 0;
+    const a = (real ? 0.3 + 0.6 * o : 0.18 + 0.2 * o) * g;
+    // 刻度：一圈小环
+    ctx.strokeStyle = `rgba(255,220,180,${a * 0.8})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, Math.max(1, 2.2 * p.s * Math.abs(sinY) + 1.2), (decade ? 9 : 5.5) * p.s, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    const minGap = decade ? 34 : 44;
+    if (used.some((x) => Math.abs(x - p.x) < minGap)) return;
+    used.push(p.x);
+    const fs = (decade ? 13 : 11.5) * clamp(p.s, 0.75, 1.15);
+    ctx.font = `${decade ? 600 : 400} ${fs}px ${SERIF}`;
+    ctx.fillStyle = real ? `rgba(255,232,200,${a})` : `rgba(200,200,220,${a * 0.8})`;
+    ctx.fillText(String(tk.y), p.x, p.y + 14 * p.s);
+    if (!real && tk.y > Y1 && o > 0.4) {
+      ctx.font = `${10 * p.s}px ${SANS}`;
+      ctx.fillStyle = `rgba(200,200,220,${a * 0.6})`;
+      ctx.fillText('未写', p.x, p.y + 30 * p.s);
+    }
+  });
+
+  // “记不清”区段
+  if (undatedZone) {
+    const d = undatedZone.u0 - f;
+    if (Math.abs(warp(d)) < ext) {
+      const p = project(warp(d) * SPAN * g, 0, 0);
+      if (p) {
+        ctx.font = `${11 * p.s}px ${SERIF}`;
+        ctx.fillStyle = `rgba(255,232,200,${(0.3 + 0.5 * openness(d)) * g})`;
+        ctx.fillText('记不清的年份', p.x, p.y + 14 * p.s);
+      }
+    }
+  }
+
+  // “此刻”信标
+  const dn = NOW_U - f;
+  if (Math.abs(warp(dn)) < ext) {
+    const p = project(warp(dn) * SPAN * g, 0, 0);
+    const pt = project(warp(dn) * SPAN * g, 120, 0);
+    if (p && pt) {
+      const o = 0.35 + 0.65 * openness(dn);
+      ctx.globalCompositeOperation = 'lighter';
+      const lg = ctx.createLinearGradient(p.x, p.y, pt.x, pt.y);
+      lg.addColorStop(0, `rgba(224,113,79,${0.8 * o * g})`); lg.addColorStop(1, 'rgba(224,113,79,0)');
+      ctx.strokeStyle = lg; ctx.lineWidth = 2 * p.s;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(pt.x, pt.y); ctx.stroke();
+      const pr = (8 + 4 * Math.sin(t * 3)) * p.s;
+      const gr = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, pr * 3);
+      gr.addColorStop(0, `rgba(255,170,130,${0.9 * o})`); gr.addColorStop(1, 'rgba(224,113,79,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(p.x, p.y, pr * 3, 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.font = `600 ${12.5 * clamp(p.s, 0.8, 1.2)}px ${SERIF}`;
+      ctx.fillStyle = `rgba(255,190,160,${o * g})`;
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('此刻', pt.x, pt.y - 4);
+      ctx.textBaseline = 'top';
+    }
+  }
+}
+
+/* 折叠起来的篇章：贴在星轴上的一圈圈细环，像合拢的书页 */
+function drawFolded(placed, g) {
+  if (g <= 0) return;
+  ctx.globalCompositeOperation = 'lighter';
+  placed.forEach((n) => {
+    const fold = 1 - n.open;
+    if (fold < 0.05) return;
+    const p = n.pb;
+    const ringR = (n.milestone ? 17 : 12) * p.s;
+    // 越挤到尽头越淡，免得几十圈叠成一团白
+    const crowd = 1 - 0.75 * smooth((Math.abs(warp(n.d)) - (A + B * 0.55)) / (B * 0.45));
+    const a = fold * n.intro * (0.55 + (n.milestone ? 0.25 : 0)) * crowd;
+    ctx.strokeStyle = hexA(n.color, a);
+    ctx.lineWidth = n.milestone ? 1.6 : 1.1;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, Math.max(1.2, ringR * Math.abs(sinY) * 0.9 + 1.4), ringR, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    const gr = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, ringR * 1.4);
+    gr.addColorStop(0, hexA(n.color, 0.25 * a)); gr.addColorStop(1, hexA(n.color, 0));
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(p.x, p.y, ringR * 1.4, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawNode(n, t) {
+  const k = n.open;
+  if (k < 0.04 || n.intro <= 0.001) return;
+  const p = n.p, pb = n.pb;
+  const fog = clamp(1.25 - (p.depth - D + 250) / 900, 0.35, 1);
+  const isHover = hover === n, isSel = selected === n;
+  const lit = 0.55 + 0.45 * Math.exp(-(n.d * n.d) / 2.2);   // 离光源（焦点）越近越亮
+  const alpha = k * fog * Math.min(1, n.intro * 1.4);
+
+  // 光丝：从星轴连到星点
+  ctx.globalCompositeOperation = 'lighter';
+  const lg = ctx.createLinearGradient(pb.x, pb.y, p.x, p.y);
+  lg.addColorStop(0, hexA(n.color, 0.05 * alpha));
+  lg.addColorStop(1, hexA(n.color, (isHover || isSel ? 0.85 : 0.5) * alpha * lit));
+  ctx.strokeStyle = lg; ctx.lineWidth = (isHover ? 1.8 : 1.1) * clamp(p.s, 0.7, 1.3);
+  ctx.beginPath(); ctx.moveTo(pb.x, pb.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+  // 光丝上跑的光点
+  const ph = (t * 0.45 + n.seed) % 1;
+  const qx = pb.x + (p.x - pb.x) * ph, qy = pb.y + (p.y - pb.y) * ph;
+  const gq = ctx.createRadialGradient(qx, qy, 0, qx, qy, 5 * p.s);
+  gq.addColorStop(0, hexA(n.color, 0.9 * alpha)); gq.addColorStop(1, hexA(n.color, 0));
+  ctx.fillStyle = gq; ctx.beginPath(); ctx.arc(qx, qy, 5 * p.s, 0, Math.PI * 2); ctx.fill();
+  // 星轴上的接点
+  ctx.fillStyle = hexA(n.color, 0.7 * alpha);
+  ctx.beginPath(); ctx.arc(pb.x, pb.y, 1.8 * pb.s, 0, Math.PI * 2); ctx.fill();
+
+  // 星点的光晕
+  const orR = (n.milestone ? 9.5 : 6.5) * p.s * (0.6 + 0.4 * k) * (isHover ? 1.2 : 1);
+  const halo = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, orR * (isSel ? 7 : 5.2));
+  halo.addColorStop(0, hexA(n.color, 0.5 * alpha * lit));
+  halo.addColorStop(0.4, hexA(n.color, 0.14 * alpha * lit));
+  halo.addColorStop(1, hexA(n.color, 0));
+  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(p.x, p.y, orR * (isSel ? 7 : 5.2), 0, Math.PI * 2); ctx.fill();
+  if (n.milestone) {
+    // 里程碑：一圈转动的光环
+    ctx.strokeStyle = hexA(n.color, 0.55 * alpha);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, orR * 2.3, orR * 0.8, t * 0.6 + n.seed * 6, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // 星点本体：一个被焦点光照亮的小球
+  const fp = project(0, 30, 120);
+  let lx = -0.4, ly = -0.5;
+  if (fp) { const vx = fp.x - p.x, vy = fp.y - p.y, vl = Math.hypot(vx, vy) || 1; lx = vx / vl * 0.45; ly = vy / vl * 0.45 - 0.2; }
+  const sg = ctx.createRadialGradient(p.x + lx * orR, p.y + ly * orR, orR * 0.05, p.x, p.y, orR);
+  sg.addColorStop(0, `rgba(255,255,255,${alpha})`);
+  sg.addColorStop(0.35, hexA(n.color, alpha));
+  sg.addColorStop(1, `rgba(20,14,20,${alpha})`);
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(p.x, p.y, orR, 0, Math.PI * 2); ctx.fill();
+
+  const hit = { n, ox: p.x, oy: p.y, or: orR };
+  if (n.cardIn > 0.01 && k > 0.25) Object.assign(hit, drawCard(n, p, orR, alpha * n.cardIn * smooth((k - 0.25) / 0.5), isHover, isSel, lit));
+  hits.push(hit);
+}
+
+function wrapText(text, maxW, maxLines) {
+  const lines = [];
+  let line = '';
+  for (const ch of text) {
+    if (ctx.measureText(line + ch).width > maxW) {
+      lines.push(line); line = ch;
+      if (lines.length === maxLines) { lines[maxLines - 1] = lines[maxLines - 1].slice(0, -1) + '…'; return lines; }
+    } else line += ch;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawCard(n, p, orR, alpha, isHover, isSel, lit) {
+  if (alpha < 0.02) return {};
+  const cs = clamp(p.s, 0.62, 1.2) * (W < 700 ? 0.86 : 1);
+  const w = 214 * cs, pad = 12 * cs;
+  const dateFs = 10.5 * cs, titleFs = 15.5 * cs, exFs = 11.5 * cs;
+  const near = Math.abs(n.d) < 0.6 && n.open > 0.9;
+  ctx.font = `${exFs}px ${SANS}`;
+  const lines = near ? wrapText(n.excerpt, w - pad * 2 - 4 * cs, 2) : [];
+  const h = pad * 2 + dateFs * 1.6 + titleFs * 1.3 + (lines.length ? lines.length * exFs * 1.65 + 6 * cs : 0);
+  const gap = orR + 14 * cs;
+  const x = p.x - w / 2;
+  const y = n.up ? p.y - gap - h : p.y + gap;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  // 卡片底：深色玻璃 + 彩色外发光
+  ctx.shadowColor = hexA(n.color, isHover || isSel ? 0.55 : 0.22 * lit);
+  ctx.shadowBlur = (isHover || isSel ? 34 : 20) * cs;
+  rr(x, y, w, h, 10 * cs);
+  const bgG = ctx.createLinearGradient(x, y, x, y + h);
+  bgG.addColorStop(0, 'rgba(26,22,30,.86)'); bgG.addColorStop(1, 'rgba(12,11,18,.9)');
+  ctx.fillStyle = bgG; ctx.fill();
+  ctx.shadowBlur = 0;
+  // 边框：朝光源一侧更亮
+  const bG = ctx.createLinearGradient(x, y, x + w, y + h);
+  bG.addColorStop(0, hexA(n.color, isHover || isSel ? 0.9 : 0.5));
+  bG.addColorStop(0.5, 'rgba(255,255,255,.06)');
+  bG.addColorStop(1, hexA(n.color, 0.15));
+  ctx.strokeStyle = bG; ctx.lineWidth = 1; ctx.stroke();
+  // 顶部的一道高光
+  const hl = ctx.createLinearGradient(x, y, x + w, y);
+  hl.addColorStop(0, 'rgba(255,255,255,0)'); hl.addColorStop(0.5, `rgba(255,240,220,${0.35 * lit})`); hl.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hl; ctx.fillRect(x + 10 * cs, y, w - 20 * cs, 1);
+  // 左侧色条
+  ctx.fillStyle = hexA(n.color, 0.85);
+  rr(x + 1, y + pad, 2.5 * cs, h - pad * 2, 1.2 * cs); ctx.fill();
+
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.font = `${dateFs}px ${SANS}`;
+  ctx.fillStyle = hexA(n.color, 0.95);
+  const dateStr = n.label.length > 22 ? n.label.slice(0, 21) + '…' : n.label;
+  ctx.fillText(dateStr, x + pad + 4 * cs, y + pad);
+  ctx.font = `600 ${titleFs}px ${SERIF}`;
+  ctx.fillStyle = '#fff6e8';
+  let title = (n.milestone ? '★ ' : '') + (n.e.title || '无题');
+  while (ctx.measureText(title).width > w - pad * 2 - 4 * cs && title.length > 2) title = title.slice(0, -2) + '…';
+  ctx.fillText(title, x + pad + 4 * cs, y + pad + dateFs * 1.6);
+  if (lines.length) {
+    ctx.font = `${exFs}px ${SANS}`;
+    ctx.fillStyle = 'rgba(214,206,194,.82)';
+    lines.forEach((ln, i) => ctx.fillText(ln, x + pad + 4 * cs, y + pad + dateFs * 1.6 + titleFs * 1.3 + 6 * cs + i * exFs * 1.65));
+  }
+  // 卡片与星点之间的小连线
+  ctx.strokeStyle = hexA(n.color, 0.45);
+  ctx.beginPath();
+  ctx.moveTo(p.x, n.up ? y + h : y);
+  ctx.lineTo(p.x, n.up ? p.y - orR : p.y + orR);
+  ctx.stroke();
+  ctx.restore();
+  return { x, y, w, h };
+}
+
+function drawFocusLight(g, t) {
+  const p = project(0, 0, 0);
+  if (!p || g <= 0) return;
+  ctx.globalCompositeOperation = 'lighter';
+  const r = 300 * g;
+  const gr = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+  gr.addColorStop(0, `rgba(255,214,160,${0.16 * g})`);
+  gr.addColorStop(0.35, `rgba(255,180,120,${0.05 * g})`);
+  gr.addColorStop(1, 'rgba(255,160,100,0)');
+  ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+  // 横向的镜头光晕
+  ctx.save();
+  ctx.translate(p.x, p.y); ctx.scale(1, 0.035);
+  const fl = ctx.createRadialGradient(0, 0, 0, 0, 0, W * 0.45);
+  fl.addColorStop(0, `rgba(255,230,200,${0.22 * g * (0.9 + 0.1 * Math.sin(t * 1.7))})`);
+  fl.addColorStop(1, 'rgba(255,200,150,0)');
+  ctx.fillStyle = fl; ctx.beginPath(); ctx.arc(0, 0, W * 0.45, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  // 亮核
+  const core = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 16);
+  core.addColorStop(0, `rgba(255,250,240,${0.9 * g})`); core.addColorStop(1, 'rgba(255,220,170,0)');
+  ctx.fillStyle = core; ctx.beginPath(); ctx.arc(p.x, p.y, 16, 0, Math.PI * 2); ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+/* 开场：四散的光尘收束成一个时间节点，闪一下，然后时间线向两边铺开 */
+function drawIntro(T, gather, burst, t) {
+  const p = project(0, 0, 0);
+  if (!p) return;
+  ctx.globalCompositeOperation = 'lighter';
+  const M = Math.max(W, H);
+  if (T < 1.05) {
+    const g = easeIn(gather);
+    intro.forEach((q) => {
+      const r = q.r * M * (1 - g);
+      const a = q.a + g * 2.6;
+      const x = p.x + Math.cos(a) * r, y = p.y + Math.sin(a) * r * 0.75;
+      const al = 0.25 + 0.75 * g;
+      ctx.fillStyle = `rgba(${q.c},${al})`;
+      ctx.beginPath(); ctx.arc(x, y, q.s * (1 + g), 0, Math.PI * 2); ctx.fill();
+    });
+    // 收束中的光环
+    for (let i = 0; i < 3; i++) {
+      const ph = ((T * 1.4 + i / 3) % 1);
+      const rr2 = 160 * (1 - ph);
+      ctx.strokeStyle = `rgba(255,214,160,${0.35 * ph * gather})`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, rr2, rr2 * 0.42, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    const cr = 6 + 22 * g + Math.sin(T * 30) * 1.5 * g;
+    const core = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, cr * 3);
+    core.addColorStop(0, `rgba(255,252,245,${0.5 + 0.5 * g})`);
+    core.addColorStop(0.3, `rgba(255,214,160,${0.5 * g})`);
+    core.addColorStop(1, 'rgba(255,180,120,0)');
+    ctx.fillStyle = core; ctx.beginPath(); ctx.arc(p.x, p.y, cr * 3, 0, Math.PI * 2); ctx.fill();
+  }
+  if (burst > 0) {
+    // 闪光
+    const fa = Math.max(0, 1 - burst / 0.6);
+    if (fa > 0) {
+      const fl = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, M * 0.7);
+      fl.addColorStop(0, `rgba(255,240,220,${0.7 * fa})`);
+      fl.addColorStop(0.25, `rgba(255,200,140,${0.25 * fa})`);
+      fl.addColorStop(1, 'rgba(255,180,120,0)');
+      ctx.fillStyle = fl; ctx.fillRect(0, 0, W, H);
+    }
+    // 冲击波
+    for (let i = 0; i < 2; i++) {
+      const b = burst - i * 0.18;
+      if (b <= 0 || b > 1.8) continue;
+      const r = easeOut(b / 1.8) * M * 0.75;
+      ctx.strokeStyle = `rgba(255,214,160,${0.5 * (1 - b / 1.8)})`;
+      ctx.lineWidth = 2 * (1 - b / 1.8) + 0.5;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, r, r * 0.3, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawEdges(a) {
+  edgeHits = [];
+  const before = nodes.filter((n) => n.d < 0 && n.open < 0.15).length;
+  const after = nodes.filter((n) => n.d > 0 && n.open < 0.15).length;
+  const ext = (A + B) * SPAN;
+  const items = [
+    { dir: -1, x: -ext * 0.93, txt: before ? `‹  更早 · ${before} 篇` : (f - A < PAST_U0 + 1 ? '‹  更早以前' : '') },
+    { dir: 1, x: ext * 0.93, txt: after ? `更晚 · ${after} 篇  ›` : (f + A > NOW_U - 1 ? '未完待续  ›' : '') },
+  ];
+  ctx.textBaseline = 'middle';
+  items.forEach((it) => {
+    if (!it.txt) return;
+    const p = project(it.x, 0, 0);
+    if (!p) return;
+    ctx.font = `12px ${SANS}`;
+    const tw = ctx.measureText(it.txt).width;
+    const bw = tw + 22, bh = 26;
+    const bx = it.dir < 0 ? Math.max(12, p.x - bw / 2) : Math.min(W - 12 - bw, p.x - bw / 2);
+    const by = p.y - 52;
+    ctx.globalAlpha = a;
+    rr(bx, by, bw, bh, 13);
+    ctx.fillStyle = 'rgba(20,18,26,.7)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,220,180,.18)'; ctx.stroke();
+    ctx.fillStyle = 'rgba(240,228,210,.85)';
+    ctx.textAlign = 'center';
+    ctx.fillText(it.txt, bx + bw / 2, by + bh / 2 + 0.5);
+    ctx.globalAlpha = 1;
+    edgeHits.push({ dir: it.dir, x: bx, y: by, w: bw, h: bh });
+  });
+}
+
+/* 底部的整体时间尺：整本书一目了然，拖动可快速穿行 */
+function drawRuler(a) {
+  const x0 = Math.max(70, W * 0.12), x1 = W - Math.max(70, W * 0.12), y = H - 38;
+  const r0 = PAST_U0 - 0.6, r1 = NOW_U + 0.6;
+  const toX = (uu) => x0 + (uu - r0) / (r1 - r0) * (x1 - x0);
+  const toU = (x) => clamp(r0 + (x - x0) / (x1 - x0) * (r1 - r0), MIN_U, MAX_U);
+  ruler = { x0, x1, y, toU };
+  ctx.globalAlpha = a;
+  // 底线
+  const lg = ctx.createLinearGradient(x0, 0, x1, 0);
+  lg.addColorStop(0, 'rgba(255,220,180,0)'); lg.addColorStop(0.1, 'rgba(255,220,180,.18)');
+  lg.addColorStop(0.9, 'rgba(255,220,180,.18)'); lg.addColorStop(1, 'rgba(255,220,180,0)');
+  ctx.strokeStyle = lg; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0 - 20, y); ctx.lineTo(x1 + 20, y); ctx.stroke();
+  // 当前展开的窗口
+  const wa = toX(clamp(f - A, r0, r1)), wb = toX(clamp(f + A, r0, r1));
+  if (wb - wa > 2) {
+    rr(wa, y - 9, wb - wa, 18, 9);
+    ctx.fillStyle = 'rgba(255,214,160,.08)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,214,160,.35)'; ctx.stroke();
+  }
+  // 年份
+  ctx.font = `10.5px ${SANS}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const every = (x1 - x0) / (Y1 - Y0 + 1) < 18 ? 10 : 5;
+  let lastLabel = -1e9;
+  years.forEach((yr) => {
+    if (yr.y % every !== 0 && yr.y !== Y0 && yr.y !== Y1) return;
+    const x = toX(yr.u0);
+    if (x - lastLabel < 34) return;
+    lastLabel = x;
+    ctx.fillStyle = 'rgba(200,190,175,.55)';
+    ctx.fillText(String(yr.y), x, y + 12);
+    ctx.fillRect(x - 0.5, y - 3, 1, 6);
+  });
+  // 每一篇一个点
+  ctx.globalCompositeOperation = 'lighter';
+  nodes.forEach((n) => {
+    const x = toX(n.u);
+    const rad = n.milestone ? 2.6 : 1.7;
+    ctx.fillStyle = hexA(n.color, Math.abs(n.d) < A ? 0.95 : 0.5);
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.globalCompositeOperation = 'source-over';
+  // 焦点
+  const fx = toX(clamp(f, r0, r1));
+  ctx.fillStyle = '#ffe2bd';
+  ctx.beginPath(); ctx.moveTo(fx, y - 12); ctx.lineTo(fx - 4, y - 18); ctx.lineTo(fx + 4, y - 18); ctx.closePath(); ctx.fill();
+  if (f > r1 || f < r0) {
+    const yrs = f > r1 ? (yearAtU(f) - Y1) : (Y0 - (yearAtU(f) ?? Y0));
+    ctx.font = `11px ${SANS}`;
+    ctx.fillStyle = 'rgba(255,214,160,.8)';
+    ctx.textAlign = f > r1 ? 'left' : 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(f > r1 ? `未来 +${yrs} 年 ›` : `‹ 更早 ${yrs} 年`, f > r1 ? x1 + 26 : x0 - 26, y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- 和应用保持同步：应用里删掉 / 改过的，这里跟着变 ---------- */
+let lastRaw = readRaw();
+function syncFromStore() {
+  const raw = readRaw();
+  if (raw === lastRaw) return false;
+  lastRaw = raw;
+  buildModel(raw, 0);
+  f = fT = clamp(fT, MIN_U, MAX_U);
+  if (selected) {
+    const again = nodes.find((n) => n.e.id === selected.e.id);
+    if (again) { if (panelOpen()) select(again); else selected = again; }
+    else if (panelOpen()) closePanel();
+    else selected = null;
+  }
+  const lc = entries.length;
+  document.getElementById('subtitle').textContent =
+    book.title + (lc ? ` · 含你写的 ${lc} 篇` : '');
+  return true;
+}
+window.addEventListener('storage', (ev) => { if (!ev.key || ev.key === KEY) syncFromStore(); });
+window.addEventListener('focus', syncFromStore);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) syncFromStore(); });
+window.addEventListener('pageshow', (ev) => { if (ev.persisted) { lastRaw = ''; syncFromStore(); } });
+
+/* ============================================================
+   9. 开场放映：进入时把时间线从最早一篇放到最后一篇
+   先放正文，再放这篇里的照片；一段淡出、下一段淡入
+   ============================================================ */
+const playEl = document.getElementById('play');
+const playCard = playEl.querySelector('.play-card');
+const playDateEl = playEl.querySelector('.play-date');
+const playTitleEl = playEl.querySelector('.play-title');
+const playBodyEl = playEl.querySelector('.play-body');
+const playFigEl = playEl.querySelector('.play-fig');
+const playImgEl = playEl.querySelector('.play-fig img');
+const playCapEl = playEl.querySelector('.play-cap');
+const playCountEl = playEl.querySelector('.play-count');
+const playBarEl = playEl.querySelector('.play-prog i');
+const playSkipEl = playEl.querySelector('.play-skip');
+
+let playToken = 0;
+let playTimers = [];
+const playLater = (fn, ms) => { playTimers.push(setTimeout(fn, ms)); };
+function playStopTimers() { playTimers.forEach(clearTimeout); playTimers = []; }
+
+const pe = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function entrySeq(e) {
+  const d = document.createElement('div');
+  d.innerHTML = sanitize(e.html || '');
+  const steps = [];
+  let buf = [];
+  const flush = () => {
+    if (!buf.length) return;
+    let chars = 0;
+    const html = buf.map((b) => {
+      chars += b.text.length;
+      return b.tag === 'blockquote' ? '<blockquote>' + pe(b.text) + '</blockquote>' : '<p>' + pe(b.text) + '</p>';
+    }).join('');
+    steps.push({ type: 'text', html: html, chars: chars });
+    buf = [];
+  };
+  const pushImg = (im) => {
+    const src = im.getAttribute('src') || '';
+    if (!src) return;
+    const fig = im.closest('figure');
+    const capEl = fig ? fig.querySelector('figcaption') : null;
+    let cap = ((capEl && capEl.textContent) || im.getAttribute('alt') || '').trim();
+    if (cap.indexOf('图片说明（可点开编辑）') >= 0) cap = cap.split('图片说明（可点开编辑）').join('').trim();
+    steps.push({ type: 'img', src: src, cap: cap });
+  };
+  /* 语音：紧跟在文字后面的，并进那段文字（文字和语音一起出现）；
+     没有文字可并的，单独成一步。 */
+  const pushAudio = (a, fig) => {
+    const src = a.getAttribute('src') || '';
+    if (!src) return;
+    const capEl = fig ? fig.querySelector('figcaption') : null;
+    const cap = ((capEl && capEl.textContent) || '').trim();
+    flush();
+    const last = steps[steps.length - 1];
+    if (last && last.type === 'text' && !last.audio) last.audio = { src: src, cap: cap };
+    else steps.push({ type: 'audio', src: src, cap: cap });
+  };
+  Array.from(d.children).forEach((el) => {
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'figure') {
+      const imgs = el.querySelectorAll('img');
+      if (imgs.length) { flush(); imgs.forEach(pushImg); return; }
+      const aud = el.querySelector('audio');
+      if (aud) { pushAudio(aud, el); return; }
+      flush();
+      return;
+    }
+    if (tag === 'img') { flush(); pushImg(el); return; }
+    if (tag === 'audio') { pushAudio(el, null); return; }
+    if (el.querySelector('img')) {
+      const imgs = Array.from(el.querySelectorAll('img'));
+      const t0 = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (t0) buf.push({ tag: 'p', text: t0 });
+      flush();
+      imgs.forEach(pushImg);
+      return;
+    }
+    const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!t) return;
+    const bt = /^(h1|h2|h3)$/.test(tag) ? 'h3' : tag === 'blockquote' ? 'blockquote' : 'p';
+    buf.push({ tag: bt, text: t });
+    if (buf.length >= 3) flush();
+  });
+  flush();
+  return steps;
+}
+
+/* ---- 放映时的背景音乐 -------------------------------------------------
+   没有音频文件：用 WebAudio 现场合成一段 4 小节循环的环境乐。
+   慢速长音 + 一点点延迟，循环到放映结束为止。                        */
+const Music = (function () {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const PREF = 'shiyi.music';
+  const PATH_PREF = 'shiyi.bgm';
+  const SONG = '风之谷';
+  const EXTS = ['mp3', 'm4a', 'ogg', 'wav'];
+  const DIRS = ['数据/音乐/', '音乐/', ''];
+  let ctx = null, master = null, bus = null, timer = null, playing = false, step = 0;
+  let on = true;
+  let el = null;
+  let mode = 'none';          // 'file' | 'synth' | 'none'
+  let blocked = false;
+  let probing = null;
+  let fadeTimer = null;
+
+  /* 从主程序窗口点进来时，让主程序代播：
+     那个窗口有用户点击的手势，浏览器允许它出声；这里的窗口没有手势，会被拦。 */
+  let host = null;
+  /* 打包版（WebView2）里窗口之间没有 opener，而且宿主已开「允许自动播放」，
+     所以这边自己放就行，不去找主窗口代播。 */
+  if (!window.__shiyiHostedApp) {
+    try { if (window.opener && !window.opener.closed) host = window.opener; } catch (e) { host = null; }
+  }
+  let hostTried = false;
+  let hostVol = 0;
+  let note = '';
+  function setNote(t) {
+    note = t;
+    const n = document.getElementById('play-mnote');
+    if (n) n.textContent = t ? '♪ ' + t : '';
+  }
+  function postHost(type) {
+    if (!host) return;
+    try { host.postMessage({ ch: 'shiyi-music', type: type }, '*'); } catch (e) { /* 忽略 */ }
+  }
+  function askHost() {
+    return new Promise(function (res) {
+      if (!host) { res({ has: false, playing: false, none: true }); return; }
+      let done = false;
+      const onMsg = function (ev) {
+        const d = ev.data || {};
+        if (d.ch === 'shiyi-music' && d.type === 'state') {
+          done = true;
+          window.removeEventListener('message', onMsg);
+          res({ has: !!d.has, playing: !!d.playing, vol: Number(d.vol) || 0 });
+        }
+      };
+      window.addEventListener('message', onMsg);
+      postHost('start');
+      setTimeout(function () {
+        if (done) return;
+        done = true;
+        window.removeEventListener('message', onMsg);
+        res({ has: false, playing: false, timeout: true });
+      }, 3000);
+    });
+  }
+
+  try { on = localStorage.getItem(PREF) !== '0'; } catch (e) { /* 隐私模式 */ }
+
+  /* ---------- 找一个音乐文件：?bgm= → 上次选的 → 数据/音乐/风之谷.* → 音乐/风之谷.* → 风之谷.* ---------- */
+  function candidates() {
+    const out = [];
+    let saved = null, q = '';
+    try { saved = localStorage.getItem(PATH_PREF); } catch (e) { /* 忽略 */ }
+    try { q = new URLSearchParams(location.search).get('bgm') || ''; } catch (e) { /* 忽略 */ }
+    if (q) out.push(q);
+    if (saved) out.push(saved);
+    DIRS.forEach(function (d) {
+      EXTS.forEach(function (x) { out.push(d + SONG + '.' + x); });
+    });
+    return out;
+  }
+
+  function tryLoad(src, ms) {
+    return new Promise(function (res) {
+      const a = new Audio();
+      let done = false;
+      const ok = function () { if (done) return; done = true; res(a); };
+      const bad = function () { if (done) return; done = true; try { a.src = ''; } catch (e) {} res(null); };
+      a.preload = 'auto';
+      a.loop = true;
+      a.addEventListener('canplaythrough', ok);
+      a.addEventListener('loadeddata', ok);
+      a.addEventListener('error', bad);
+      setTimeout(bad, ms || 1400);
+      a.src = src;
+      a.load();
+    });
+  }
+
+  function pickSource() {
+    if (probing) return probing;
+    probing = (async function () {
+      const list = candidates();
+      for (let i = 0; i < list.length; i++) {
+        const a = await tryLoad(list[i]);
+        if (a) {
+          el = a; el.loop = true; el.volume = 0; mode = 'file';
+          return true;
+        }
+      }
+      mode = 'synth';
+      return false;
+    })();
+    return probing;
+  }
+
+  /* ---------- 音量渐变 ---------- */
+  function fadeTo(target, ms) {
+    if (!el) return;
+    if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
+    const from = el.volume;
+    const t0 = Date.now();
+    fadeTimer = setInterval(function () {
+      const k = Math.min(1, (Date.now() - t0) / ms);
+      el.volume = Math.max(0, Math.min(1, from + (target - from) * k));
+      if (k >= 1) { clearInterval(fadeTimer); fadeTimer = null; }
+    }, 60);
+  }
+
+  /* ---------- 合成兜底（没找到音乐文件时用）：D 大调四小节 ---------- */
+  const CHORDS = [
+    [146.83, 220.00, 293.66, 369.99],
+    [123.47, 185.00, 246.94, 293.66],
+    [98.00, 146.83, 196.00, 246.94],
+    [110.00, 164.81, 220.00, 277.18],
+  ];
+  const BAR = 8;
+  const BAR_MS = BAR * 1000;
+
+  function makeCtx() {
+    if (ctx) return ctx;
+    if (!AC) return null;
+    try { ctx = new AC(); } catch (e) { return null; }
+    master = ctx.createGain();
+    master.gain.value = 0.0001;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 1500;
+    lp.Q.value = 0.3;
+    const delay = ctx.createDelay(4);
+    delay.delayTime.value = 0.66;
+    const fb = ctx.createGain(); fb.gain.value = 0.3;
+    const wet = ctx.createGain(); wet.gain.value = 0.32;
+    lp.connect(master);
+    lp.connect(delay);
+    delay.connect(fb); fb.connect(delay);
+    delay.connect(wet); wet.connect(master);
+    master.connect(ctx.destination);
+    bus = lp;
+    return ctx;
+  }
+
+  function voice(freq, t0, dur, amp) {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(amp, t0 + 2.8);
+    g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
+    const a = ctx.createOscillator();
+    a.type = 'sine';
+    a.frequency.value = freq;
+    const b = ctx.createOscillator();
+    b.type = 'triangle';
+    b.frequency.value = freq * 2.004;
+    const bg = ctx.createGain();
+    bg.gain.value = 0.16;
+    a.connect(g);
+    b.connect(bg); bg.connect(g);
+    g.connect(bus);
+    const end = t0 + dur + 0.2;
+    a.start(t0); b.start(t0);
+    a.stop(end); b.stop(end);
+  }
+
+  function bar(t) {
+    const ch = CHORDS[step % CHORDS.length];
+    step += 1;
+    ch.forEach(function (fr, k) { voice(fr, t + k * 0.07, BAR + 1.4, k === 0 ? 0.14 : 0.1); });
+    if (Math.random() < 0.55) voice(ch[2] * 2, t + 3.4, 4.2, 0.045);
+  }
+
+  function schedule() {
+    bar(ctx.currentTime + 0.05);
+    timer = setInterval(function () {
+      if (!playing || !ctx) return;
+      bar(ctx.currentTime + 0.05);
+    }, BAR_MS);
+  }
+
+  function synthStart() {
+    if (!makeCtx()) return;
+    if (!mode || mode === 'none') setNote('合成音在播');
+    if (ctx.state === 'suspended') { ctx.resume().catch(function () {}); }
+    if (playing) return;
+    playing = true;
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    master.gain.setValueAtTime(Math.max(0.0001, master.gain.value), ctx.currentTime);
+    master.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 4);
+    if (timer) { clearInterval(timer); timer = null; }
+    schedule();
+  }
+
+  /* ---------- 文件播放 ---------- */
+  function playFile() {
+    if (!el || playing) return;
+    playing = true;
+    el.volume = 0;
+    fadeTo(0.5, 2200);
+    const p = el.play();
+    if (p && p.then) {
+      p.then(function () {
+        blocked = false;
+        setNote('本窗口在播');
+      }).catch(function () {
+        blocked = true;
+        playing = false;
+        if (el) el.volume = 0;
+        setNote('被拦，点一下页面');
+        armGesture();
+      });
+    }
+  }
+
+  function armGesture() {
+    if (armGesture.done) return;
+    armGesture.done = true;
+    ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
+      window.addEventListener(ev, function () {
+        if (!on || playEl.hidden) return;
+        blocked = false;
+        /* 主窗口那路没成，就在本窗口里放：这次点击正好给了本窗口权限 */
+        if (mode === 'host') { postHost('start'); startLocal(); }
+        else start();
+      }, { once: true, passive: true });
+    });
+  }
+
+  /* ---------- 换一首：把本地音频文件存进数据文件夹 ---------- */
+  function getDirHandle() {
+    return new Promise(function (res) {
+      if (!window.indexedDB) { res(null); return; }
+      const rq = indexedDB.open('shiyi.memoir.handles', 1);
+      rq.onupgradeneeded = function () { try { rq.result.createObjectStore('kv'); } catch (e) { /* 忽略 */ } };
+      rq.onerror = function () { res(null); };
+      rq.onsuccess = function () {
+        const db = rq.result;
+        try {
+          const g = db.transaction('kv', 'readonly').objectStore('kv').get('dir');
+          g.onsuccess = function () { res(g.result || null); };
+          g.onerror = function () { res(null); };
+        } catch (e) { res(null); }
+      };
+    });
+  }
+
+  async function useFile(file) {
+    if (!file) return false;
+    const url = URL.createObjectURL(file);
+    const a = await tryLoad(url, 3000);
+    if (!a) return false;
+    if (el && el.pause) { try { el.pause(); } catch (e) {} }
+    el = a;
+    el.loop = true;
+    el.volume = 0;
+    mode = 'file';
+    playing = false;
+    blocked = false;
+    if (on) playFile();
+    saveFile(file).catch(function () {});
+    return true;
+  }
+
+  async function saveFile(file) {
+    const dir = await getDirHandle();
+    if (!dir || !dir.getDirectoryHandle) return null;
+    const sub = await dir.getDirectoryHandle('音乐', { create: true });
+    const name = (file.name || (SONG + '.mp3')).replace(/[\\/:*?"<>|]/g, '_');
+    const fh = await sub.getFileHandle(name, { create: true });
+    const w = await fh.createWritable();
+    await w.write(file);
+    await w.close();
+    try { localStorage.setItem(PATH_PREF, dir.name + '/音乐/' + name); } catch (e) { /* 忽略 */ }
+    return dir.name + '/音乐/' + name;
+  }
+
+  /* ---------- 对外 ---------- */
+  function start() {
+    if (!on) { setNote('音乐已关（点 ♪ 打开）'); return; }
+    if (mode === 'host') { postHost('start'); playing = true; blocked = false; return; }
+    if (mode === 'file') { playFile(); return; }
+    if (mode === 'synth') { synthStart(); return; }
+    (async function () {
+      if (host && !hostTried) {
+        hostTried = true;
+        let info = await askHost();
+        if (info && info.timeout) {
+          await new Promise(function (r) { setTimeout(r, 1200); });
+          info = await askHost();
+        }
+        if (info && info.has) {
+          mode = 'host';
+          playing = true;
+          blocked = !info.playing;
+          hostVol = info.vol || 0;
+          setNote(info.playing
+            ? '主窗口在播 · 音量 ' + Math.round((info.vol || 0) * 100) + '%'
+            : '主窗口被拦，点一下页面');
+          return;
+        }
+        if (info && info.timeout) setNote('主窗口没回应（刷新一下首页）');
+      }
+      const ok2 = await pickSource();
+      if (!on) return;
+      if (ok2) playFile(); else synthStart();
+    })();
+  }
+
+  /* 本窗口自己放（用户在本窗口点过之后才被允许） */
+  async function startLocal() {
+    const ok = await pickSource();
+    if (!on) return;
+    if (ok) playFile(); else synthStart();
+  }
+
+  function stop(fade) {
+    const f = typeof fade === 'number' ? fade : 1.6;
+    if (mode === 'host') { playing = false; postHost('stop'); return; }
+    if (mode === 'file' && el) {
+      playing = false;
+      fadeTo(0, f * 1000);
+      setTimeout(function () {
+        if (!playing && el && el.pause) { try { el.pause(); } catch (e) {} }
+      }, f * 1000 + 140);
+      return;
+    }
+    if (!ctx || !playing) return;
+    playing = false;
+    if (timer) { clearInterval(timer); timer = null; }
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    master.gain.setValueAtTime(Math.max(0.0001, master.gain.value), ctx.currentTime);
+    master.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + f);
+  }
+
+  function setOn(v) {
+    on = !!v;
+    try { localStorage.setItem(PREF, on ? '1' : '0'); } catch (e) { /* 忽略 */ }
+    if (!on) stop(0.5);
+    else if (!playEl.hidden) start();
+  }
+
+  return {
+    start: start,
+    stop: stop,
+    setOn: setOn,
+    useFile: useFile,
+    isOn: function () { return on; },
+    duck: function (on2) {
+      if (mode !== 'file' || !el) return;
+      try { el.volume = on2 ? 0.12 : 0.5; } catch (e) { /* 忽略 */ }
+    },
+    mode: function () { return mode; },
+    blocked: function () { return blocked; },
+    note: function () { return note; },
+    state: function () {
+      if (mode === 'host') return blocked ? 'suspended' : 'running';
+      return mode === 'file' ? (el ? (el.paused ? 'suspended' : 'running') : 'none') : (ctx ? ctx.state : 'none');
+    },
+  };
+})();
+window.__music = Music;
+window.__seq = entrySeq;
+window.__musicNote = () => Music.note();
+
+
+/* 播放时页面没有点击手势，浏览器会把音频挂起；第一次交互时补一刀 */
+['pointerdown', 'keydown', 'touchstart'].forEach((ev) => {
+  window.addEventListener(ev, () => { if (!playEl.hidden) Music.start(); }, { passive: true });
+});
+let voiceEl = null;
+function stopVoice() {
+  if (!voiceEl) return;
+  const a = voiceEl;
+  voiceEl = null;
+  try { a.pause(); } catch (e) { /* 忽略 */ }
+  Music.duck(false);
+}
+function finishPlayback(keepMusic) {
+  if (!keepMusic) Music.stop();
+  stopVoice();
+  playStopTimers();
+  playToken++;
+  playEl.classList.add('out');
+  playLater(() => { playEl.hidden = true; playEl.classList.remove('out'); }, 720);
+  playCard.classList.remove('show', 'fig-mode');
+  playFigEl.classList.remove('on');
+  // 放映收尾后让星图自己再聚一次，接得上后面的浏览
+  introStart = performance.now();
+  body.classList.remove('ready');
+}
+
+function startPlayback(force) {
+  const list = nodes.slice().sort((a, b) => a.u - b.u);
+  playStopTimers();
+  if (!list.length) { finishPlayback(); return; }
+  /* 系统开了「减少动态效果」就不放画面，但音乐照放——进去有声音是明确要求 */
+  if (reduceMotion && !force) { Music.start(); finishPlayback(true); return; }
+  const token = ++playToken;
+  playEl.hidden = false;
+  playEl.classList.remove('out');
+  playCard.classList.remove('show', 'fig-mode');
+  playFigEl.classList.remove('on');
+  body.classList.remove('ready');
+  playBarEl.style.width = '0%';
+  Music.start();
+
+  let i = 0;
+  let steps = [];
+  const guard = (fn) => () => { if (token === playToken) fn(); };
+  // 篇数多时整体提速，免得一场开场放十几分钟
+  const fast = list.length > 12;
+  const textBase = fast ? 1500 : 2000;
+  const textPer = fast ? 14 : 26;
+  const textCap = fast ? 3000 : 4800;
+  const imgHold = fast ? 1700 : 2300;
+
+  function leave() {
+    playCard.classList.remove('show', 'fig-mode');
+    playFigEl.classList.remove('on');
+    playLater(guard(() => { i += 1; showEntry(); }), 620);
+  }
+
+  /* 放一段语音，播完（或出错/超时）才进下一步 */
+  function voiceStep(src, next) {
+    stopVoice();
+    const a = new Audio(src);
+    voiceEl = a;
+    let done = false;
+    const fin = () => {
+      if (done) return;
+      done = true;
+      if (voiceEl === a) {
+        voiceEl = null;
+        try { a.pause(); } catch (e) { /* 忽略 */ }
+        Music.duck(false);
+      }
+      next();
+    };
+    a.addEventListener('ended', fin);
+    a.addEventListener('error', fin);
+    Music.duck(true);
+    const p = a.play();
+    if (p && p.catch) p.catch(() => { /* 被策略拦：靠时长兜底继续往下走 */ });
+    const arm = () => {
+      const ms = isFinite(a.duration) && a.duration > 0 ? a.duration * 1000 + 500 : 9000;
+      playLater(guard(fin), ms);
+    };
+    if (a.readyState >= 1) arm();
+    else {
+      a.addEventListener('loadedmetadata', arm, { once: true });
+      playLater(guard(arm), 3200);
+    }
+  }
+
+  // 一篇之内按原文顺序走：文字 → 图片 → 后面的文字 → …
+  function showStep(k) {
+    if (token !== playToken) return;
+    if (!steps.length || k >= steps.length) { leave(); return; }
+    const s = steps[k];
+    playBarEl.style.width = (((i + (k + 1) / steps.length) / list.length) * 100).toFixed(2) + '%';
+    if (s.type === 'audio') {
+      playBodyEl.classList.add('swap');
+      playLater(guard(() => {
+        playBodyEl.innerHTML = '<p class="play-voice">♪ ' + pe(s.cap || '语音') + '</p>';
+        playCard.classList.remove('fig-mode');
+        playFigEl.classList.remove('on');
+        playBodyEl.classList.remove('swap');
+        voiceStep(s.src, () => showStep(k + 1));
+      }), 360);
+      return;
+    }
+    if (s.type === 'img') {
+      playImgEl.src = s.src;
+      playCapEl.textContent = s.cap || '';
+      playCard.classList.add('fig-mode');
+      playFigEl.classList.remove('on');
+      void playFigEl.offsetWidth;
+      playFigEl.classList.add('on');
+      playLater(guard(() => {
+        playFigEl.classList.remove('on');
+        playLater(guard(() => showStep(k + 1)), 560);
+      }), imgHold);
+      return;
+    }
+    const chars = s.chars;
+    playBodyEl.classList.add('swap');
+    playLater(guard(() => {
+      playBodyEl.innerHTML = s.html;
+      playCard.classList.remove('fig-mode');
+      playFigEl.classList.remove('on');
+      playBodyEl.classList.remove('swap');
+    }), 360);
+    /* 有语音的段落：文字和语音一起出现，播完语音才往下走 */
+    if (s.audio) {
+      playLater(guard(() => voiceStep(s.audio.src, () => showStep(k + 1))), 820);
+      return;
+    }
+    playLater(guard(() => showStep(k + 1)), 360 + Math.min(textCap, textBase + chars * textPer));
+  }
+
+  function showEntry() {
+    if (token !== playToken) return;
+    if (i >= list.length) {
+      playBarEl.style.width = '100%';
+      playLater(guard(finishPlayback), 400);
+      return;
+    }
+    const n = list[i];
+    steps = entrySeq(n.e);
+    playCountEl.textContent = '第 ' + (i + 1) + ' / ' + list.length + ' 篇';
+    playBarEl.style.width = ((i / list.length) * 100).toFixed(2) + '%';
+    playDateEl.textContent = n.label || '';
+    playTitleEl.textContent = n.e.title || '无题';
+    playBodyEl.innerHTML = '';
+    playCard.classList.remove('show', 'fig-mode');
+    playFigEl.classList.remove('on');
+    void playCard.offsetWidth;
+    playCard.classList.add('show');
+    playLater(guard(() => showStep(0)), 420);
+  }
+
+  showEntry();
+}
+
+const playMusicEl = document.getElementById('play-music');
+const pickMusicEl = playEl.querySelector('#pick-music');
+const playSoundEl = playEl.querySelector('#play-sound');
+const musicFileEl = document.getElementById('music-file');
+const playTipEl = playEl.querySelector('.play-tip');
+const TIP_DEFAULT = playTipEl ? playTipEl.textContent : '';
+function flashTip(text, ms) {
+  if (!playTipEl) return;
+  playTipEl.textContent = text;
+  setTimeout(function () { playTipEl.textContent = TIP_DEFAULT; }, ms || 4200);
+}
+function syncMusicLabel() {
+  if (!playMusicEl) return;
+  const off = !Music.isOn();
+  const m = Music.mode();
+  const needTap = !off && Music.blocked();
+  playMusicEl.textContent = off ? '♪ 静音' : needTap ? '♪ 点一下出声' : '♪ 音乐';
+  playMusicEl.classList.toggle('off', off);
+  playMusicEl.title = off ? '点一下打开背景音乐'
+    : needTap ? '浏览器拦了自动播放，点一下页面任意位置即可'
+    : m === 'synth' ? '没找到《风之谷》的音频文件，现在用合成音垫着；点右边 ♫ 换曲'
+    : '点一下关掉背景音乐';
+  if (playSoundEl) playSoundEl.hidden = !needTap;
+  const noteEl = document.getElementById('play-mnote');
+  if (noteEl) {
+    if (off) noteEl.textContent = '♪ 音乐已关（点右下角打开）';
+    else noteEl.textContent = Music.note ? (Music.note() ? '♪ ' + Music.note() : '') : '';
+  }
+}
+playMusicEl.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  Music.setOn(!Music.isOn());
+  if (Music.isOn()) Music.start();
+  syncMusicLabel();
+  setTimeout(syncMusicLabel, 600);
+});
+if (pickMusicEl && musicFileEl) {
+  pickMusicEl.addEventListener('click', (ev) => { ev.stopPropagation(); musicFileEl.click(); });
+  musicFileEl.addEventListener('change', () => {
+    const f2 = musicFileEl.files && musicFileEl.files[0];
+    musicFileEl.value = '';
+    if (!f2) return;
+    Music.useFile(f2).then((ok) => {
+      syncMusicLabel();
+      flashTip(ok ? '换好了：' + f2.name + (Music.mode() === 'file' ? '（下次打开会自动用这首）' : '') : '这文件读不了，换一个 mp3 / m4a 试试');
+      setTimeout(syncMusicLabel, 800);
+    });
+  });
+}
+syncMusicLabel();
+setInterval(syncMusicLabel, 1500);
+playSkipEl.addEventListener('click', (ev) => { ev.stopPropagation(); finishPlayback(); });
+playEl.addEventListener('click', (ev) => { if (!ev.target.closest('.play-card')) finishPlayback(); });
+document.getElementById('btn-play').addEventListener('click', () => { closePanel(); startPlayback(true); });
+window.addEventListener('keydown', (ev) => {
+  if (playEl.hidden) return;
+  if (ev.key === 'Escape' || ev.key === ' ' || ev.key === 'Enter') {
+    finishPlayback();
+    ev.preventDefault();
+  }
+});
+
+resize();
+requestAnimationFrame(frame);
+startPlayback(false);
+})();
+</script>
+</body>
+</html>

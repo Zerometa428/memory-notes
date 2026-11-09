@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拾忆 · 回忆录</title>
+<link rel="stylesheet" href="styles.css?v=20261104a">
+</head>
+<body>
+
+<div class="ambient" id="ambient" aria-hidden="true">
+  <div class="amb-glow"></div>
+  <div class="amb-vignette"></div>
+</div>
+
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="brand-mark">拾</span>
+      <div class="brand-text">
+        <b>拾忆</b>
+        <small>一本可以慢慢写的书</small>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-block" id="btn-new">＋ 写一篇</button>
+
+    <nav class="nav" id="nav"></nav>
+
+    <div class="volumes-head">
+      <span>目录</span>
+      <span class="vol-count" id="vol-total"></span>
+    </div>
+    <div class="volumes" id="volumes"></div>
+
+    <div class="sidebar-foot">
+      <div class="storage" id="storage" title="保存在这台浏览器里的数据量，不是内存占用；浏览器给的额度约 5 MB">
+        <div class="storage-top"><span>本地存储</span><span id="storage-text">—</span></div>
+        <div class="storage-bar"><i id="storage-bar"></i></div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn only-mobile" id="btn-menu" aria-label="菜单">☰</button>
+      <div class="topbar-title" id="topbar-title">我的一生</div>
+      <div class="topbar-actions">
+        <input class="search" id="search" type="search" placeholder="搜索故事、人物、地点…" autocomplete="off">
+        <button class="icon-btn" id="btn-theme" title="切换纸色">◐</button>
+        <button class="icon-btn" id="btn-export" title="导出与备份">⤓</button>
+      </div>
+    </header>
+    <div class="folder-bar" id="folder-bar" hidden>
+      <span id="folder-bar-text">上次的数据文件夹还没授权</span>
+      <button class="btn btn-sm" data-act="folder-restore">点一下继续用</button>
+      <button class="folder-bar-x" id="folder-bar-close" title="先不用" aria-label="关闭">×</button>
+    </div>
+    <div class="view" id="view"></div>
+  </main>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast" class="toast"></div>
+<div id="print-root"></div>
+<input type="file" id="file-import" accept="application/json" hidden>
+<input type="file" id="file-image" accept="image/*" hidden>
+<input type="file" id="file-audio" accept="audio/*,.m4a,.mp3,.wav,.ogg,.webm,.aac,.flac" hidden>
+
+<script>
+  /* 每次打开都拿最新脚本，免得浏览器用缓存里的旧版（本地文件也会被缓存） */
+  (function () {
+    var s = document.createElement('script');
+    s.src = 'app.js?v=' + Date.now();
+    document.body.appendChild(s);
+  })();
+</script>
+</body>
+</html>

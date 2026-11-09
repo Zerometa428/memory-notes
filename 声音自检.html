@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>声音自检 · 拾忆</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 28px 22px 60px;
+    font: 15px/1.75 "Songti SC", "SimSun", Georgia, serif;
+    background: #f7f3ea; color: #2b2622;
+  }
+  h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: .04em; }
+  .sub { color: #7a6f63; font-size: 13px; margin-bottom: 22px; }
+  .row {
+    display: grid; grid-template-columns: 120px 1fr; gap: 10px;
+    padding: 10px 14px; border-bottom: 1px solid #e4dccc;
+  }
+  .row b { font-weight: 600; color: #6b5f52; font-size: 13.5px; }
+  .ok { color: #2f6b3f; }
+  .bad { color: #a8341f; }
+  .wait { color: #8a7b68; }
+  code { font: 13px/1.5 ui-monospace, Consolas, monospace; background: #efe8db; padding: 1px 5px; border-radius: 4px; }
+  .verdict {
+    margin: 22px 0; padding: 16px 18px; border-radius: 12px;
+    background: #fffdf7; border: 1px solid #e4dccc; font-size: 15.5px;
+  }
+  button {
+    font: inherit; font-size: 14px; padding: 9px 18px; cursor: pointer;
+    border-radius: 10px; border: 1px solid #d9cdb6; background: #fffdf7; color: #2b2622;
+  }
+  button:hover { border-color: #b0432b; color: #b0432b; }
+  .hint { color: #7a6f63; font-size: 13px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<h1>声音自检</h1>
+<div class="sub">这个页面只做检查，不改任何数据。检查完把结果告诉我，或者直接截图。</div>
+
+<div class="row"><b>浏览器允许自动出声？</b><div id="r-policy" class="wait">检查中…</div></div>
+<div class="row"><b>找到音乐文件？</b><div id="r-file" class="wait">检查中…</div></div>
+<div class="row"><b>能不能播（不用点）？</b><div id="r-play" class="wait">检查中…</div></div>
+<div class="row"><b>真的在走吗？</b><div id="r-clock" class="wait">检查中…</div></div>
+<div class="row"><b>音量 / 静音</b><div id="r-vol" class="wait">检查中…</div></div>
+<div class="row"><b>系统「减少动态」</b><div id="r-rm" class="wait">检查中…</div></div>
+<div class="row"><b>你的数据</b><div id="r-data" class="wait">检查中…</div></div>
+
+<div class="verdict" id="verdict">等结果…</div>
+
+<p><button id="again">点一下，再试一次</button>　<span class="hint">点完之后如果「能不能播」变成“可以”，说明只是缺一次点击授权。</span></p>
+
+<div class="hint">如果你是从首页「回忆时间线」进的星图，声音应该由首页那个窗口发出来；这个自检页是独立页面，用来判断浏览器到底让不让出声。</div>
+
+<script>
+(function () {
+  var SONG = '风之谷';
+  var DIRS = ['数据/音乐/', '音乐/', ''];
+  var EXTS = ['mp3', 'm4a', 'ogg', 'wav'];
+  var el = null;
+  var found = null;
+
+  function set(id, text, cls) {
+    var n = document.getElementById(id);
+    n.textContent = text;
+    n.className = cls || '';
+  }
+
+  function candidates() {
+    var out = [];
+    DIRS.forEach(function (d) { EXTS.forEach(function (x) { out.push(d + SONG + '.' + x); }); });
+    return out;
+  }
+
+  function probe(src) {
+    return new Promise(function (res) {
+      var a = new Audio();
+      var done = false;
+      var fin = function (ok) {
+        if (done) return;
+        done = true;
+        res(ok ? a : null);
+      };
+      a.preload = 'auto';
+      a.loop = true;
+      a.addEventListener('canplaythrough', function () { fin(true); });
+      a.addEventListener('loadeddata', function () { fin(true); });
+      a.addEventListener('error', function () { fin(false); });
+      setTimeout(function () { fin(false); }, 3000);
+      a.src = src;
+      a.load();
+    });
+  }
+
+  function checkClock() {
+    if (!el) { set('r-clock', '没有可用的音频', 'bad'); return; }
+    var t0 = el.currentTime;
+    var samples = [];
+    var tick = function (i) {
+      if (i > 2) return finish();
+      setTimeout(function () {
+        samples.push(el.currentTime);
+        tick(i + 1);
+      }, 900);
+    };
+    var finish = function () {
+      var max = Math.max.apply(null, samples.concat([t0]));
+      var moving = max > t0 + 0.05;
+      if (moving) {
+        set('r-clock', '在走：' + t0.toFixed(2) + 's → ' + max.toFixed(2) + 's，声音应该能听见', 'ok');
+        document.getElementById('verdict').textContent =
+          '音频确实在播放。如果你还是听不见，问题在系统音量、输出设备，或浏览器标签被静音了（标签上右键，看有没有「取消静音」）。';
+      } else if (!el.paused) {
+        set('r-clock', '已开始但进度没动（' + el.currentTime.toFixed(2) + 's）', 'wait');
+        document.getElementById('verdict').textContent =
+          '浏览器允许播放、音频也已开始，但播放进度不走：多半是这台机器没有可用的声音输出设备，或者系统把浏览器的声音静音了。先检查系统音量与输出设备。';
+      } else {
+        set('r-clock', '没走，而且处于暂停状态（' + el.currentTime.toFixed(2) + 's）', 'bad');
+        document.getElementById('verdict').textContent =
+          '浏览器把这次播放挂起了。点下面「点一下，再试一次」；还是一样，就说明这个浏览器默认禁止自动出声，得靠「启动-有声播放.bat」，或者先点一下页面。';
+      }
+    };
+    tick(0);
+  }
+
+  function attempt() {
+    if (!el) return;
+    set('r-play', '正在尝试…', 'wait');
+    el.volume = 0.5;
+    el.muted = false;
+    var p = el.play();
+    if (!p || !p.then) { set('r-play', '这个浏览器不支持 play() 返回状态', 'bad'); return; }
+    p.then(function () {
+      set('r-play', '可以：浏览器允许它出声（play() 成功）', 'ok');
+      checkClock();
+    }).catch(function (e) {
+      set('r-play', '被拦：' + (e && e.name) + '（' + (e && e.message) + '）', 'bad');
+      set('r-clock', '还没开始，所以没走', 'bad');
+      document.getElementById('verdict').textContent =
+        '浏览器拒绝了自动播放（' + (e && e.name) + '）。这是策略限制，网页绕不过去：要么先点一下页面，要么用「启动-有声播放.bat」打开。';
+    });
+  }
+
+  async function run() {
+    set('r-rm', matchMedia('(prefers-reduced-motion: reduce)').matches ? '开着（放映会被跳过，但音乐照放）' : '没开', '');
+
+    try {
+      var raw = localStorage.getItem('shiyi.memoir.v1');
+      if (!raw) {
+        set('r-data', '浏览器里没有数据（这个文件不是从首页那个浏览器配置打开的？）', 'bad');
+      } else {
+        var db = JSON.parse(raw);
+        var b = db.books && db.books[0];
+        var n = b ? (b.entries || []).filter(function (e) { return !e.deletedAt; }).length : 0;
+        set('r-data', '《' + (b ? b.title : '?') + '》' + n + ' 篇，' + Math.round(raw.length / 1024) + ' KB', 'ok');
+      }
+    } catch (e) {
+      set('r-data', '读数据出错：' + e.message, 'bad');
+    }
+
+    var list = candidates();
+    for (var i = 0; i < list.length; i++) {
+      var a = await probe(list[i]);
+      if (a) { found = list[i]; el = a; break; }
+    }
+    if (!el) {
+      set('r-file', '一个都没找到（应该放在 音乐/风之谷.mp3）', 'bad');
+      set('r-play', '没有文件，跳过', 'bad');
+      set('r-clock', '没有文件，跳过', 'bad');
+      set('r-vol', '—', '');
+      set('r-policy', '—', '');
+      document.getElementById('verdict').textContent =
+        '没找到音频文件。请确认文件在项目里的「音乐」文件夹，名字是 风之谷.mp3（或 .m4a / .ogg / .wav）。';
+      return;
+    }
+    set('r-file', '找到了：' + found + '（' + Math.round(el.duration || 0) + ' 秒）', 'ok');
+    set('r-policy', '页面是否被点击过：' + (navigator.userActivation ? (navigator.userActivation.hasBeenActive ? '是' : '否') : '这个浏览器不告诉我'), '');
+    attempt();
+    setTimeout(function () {
+      set('r-vol', 'volume=' + el.volume + '，muted=' + el.muted + '，paused=' + el.paused, el.paused ? 'bad' : 'ok');
+    }, 1600);
+  }
+
+  document.getElementById('again').addEventListener('click', function () {
+    if (!el) { run(); return; }
+    el.currentTime = 0;
+    attempt();
+    setTimeout(function () {
+      set('r-vol', 'volume=' + el.volume + '，muted=' + el.muted + '，paused=' + el.paused, el.paused ? 'bad' : 'ok');
+    }, 1600);
+  });
+
+  run();
+})();
+</script>
+</body>
+</html>
